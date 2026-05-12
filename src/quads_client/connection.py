@@ -1,7 +1,17 @@
 from typing import Optional
+import sys
 import jwt
-import truststore
 import urllib3
+Conditionally inject truststore only on macOS
+if sys.platform == 'darwin':
+    try:
+        import truststore
+    except ImportError:
+        import warnings
+        warnings.warn(
+            "The 'truststore' package is missing. macOS system certificates "
+            "may not be recognized. Please run `pip install truststore`."
+        )
 
 from quads_lib import QuadsApi
 
@@ -133,7 +143,9 @@ class ConnectionManager:
         url = self.config.get_server_url(server_name)
         username, password = self.config.get_server_credentials(server_name)
         verify = self.config.get_server_verify(server_name)
-        truststore.inject_into_ssl()
+
+        if sys.platform == 'darwin':
+            truststore.inject_into_ssl()
 
         # Suppress SSL warnings when certificate verification is disabled
         if not verify:
