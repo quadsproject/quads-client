@@ -1,13 +1,9 @@
 from typing import Optional
 import jwt
 import truststore
-truststore.inject_into_ssl()
 import urllib3
-
 from quads_lib import QuadsApi
-
 from quads_client.config import QuadsClientConfig
-
 
 class ConnectionError(Exception):
     pass
@@ -134,6 +130,7 @@ class ConnectionManager:
         url = self.config.get_server_url(server_name)
         username, password = self.config.get_server_credentials(server_name)
         verify = self.config.get_server_verify(server_name)
+        truststore.inject_into_ssl()
 
         # Suppress SSL warnings when certificate verification is disabled
         if not verify:
