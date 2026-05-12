@@ -1,5 +1,7 @@
 from typing import Optional
 import jwt
+import truststore
+truststore.inject_into_ssl()
 import urllib3
 
 from quads_lib import QuadsApi
