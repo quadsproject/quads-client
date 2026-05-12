@@ -267,38 +267,41 @@ def test_connection_error_timeout(mock_config, mock_api):
             conn.connect("test_server")
 
 
-  def test_connection_truststore_inject_on_darwin(mock_config, mock_api):
-      """Test that truststore.inject_into_ssl() is called on macOS"""
-      mock_truststore = MagicMock()
+def test_connection_truststore_inject_on_darwin(mock_config, mock_api):
+    """Test that truststore.inject_into_ssl() is called on macOS"""
+    mock_truststore = MagicMock()
 
-      with patch("quads_client.connection.QuadsApi", return_value=mock_api), \
-           patch("quads_client.connection.sys") as mock_sys, \
-           patch("quads_client.connection._has_truststore", True), \
-           patch("quads_client.connection.truststore", mock_truststore, create=True):
-          mock_sys.platform = "darwin"
-          conn = ConnectionManager(mock_config)
-          conn.connect("test_server")
-
-          mock_truststore.inject_into_ssl.assert_called_once()
-
-
-  def test_connection_truststore_skip_on_linux(mock_config, mock_api):
-      """Test that truststore is not injected on Linux"""
-      with patch("quads_client.connection.QuadsApi", return_value=mock_api), \
-           patch("quads_client.connection.sys") as mock_sys:
-          mock_sys.platform = "linux"
-          conn = ConnectionManager(mock_config)
-          conn.connect("test_server")
+    with (
+        patch("quads_client.connection.QuadsApi", return_value=mock_api),
+        patch("quads_client.connection.sys") as mock_sys,
+        patch("quads_client.connection._has_truststore", True),
+        patch("quads_client.connection.truststore", mock_truststore, create=True),
+    ):
+        mock_sys.platform = "darwin"
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+        mock_truststore.inject_into_ssl.assert_called_once()
 
 
-  def test_connection_truststore_missing_on_darwin(mock_config, mock_api):
-      """Test that missing truststore on macOS still connects"""
-      with patch("quads_client.connection.QuadsApi", return_value=mock_api), \
-           patch("quads_client.connection.sys") as mock_sys, \
-           patch("quads_client.connection._has_truststore", False):
-          mock_sys.platform = "darwin"
-          conn = ConnectionManager(mock_config)
-          conn.connect("test_server")
+def test_connection_truststore_skip_on_linux(mock_config, mock_api):
+    """Test that truststore is not injected on Linux"""
+    with (
+        patch("quads_client.connection.QuadsApi", return_value=mock_api),
+        patch("quads_client.connection.sys") as mock_sys,
+    ):
+        mock_sys.platform = "linux"
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
 
-          assert conn.is_connected
 
+def test_connection_truststore_missing_on_darwin(mock_config, mock_api):
+    """Test that missing truststore on macOS still connects"""
+    with (
+        patch("quads_client.connection.QuadsApi", return_value=mock_api),
+        patch("quads_client.connection.sys") as mock_sys,
+        patch("quads_client.connection._has_truststore", False),
+    ):
+        mock_sys.platform = "darwin"
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+        assert conn.is_connected

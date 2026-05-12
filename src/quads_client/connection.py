@@ -3,6 +3,7 @@ import sys
 import jwt
 import urllib3
 
+_has_truststore = False
 # Conditionally inject truststore only on macOS
 if sys.platform == "darwin":
     try:
@@ -10,7 +11,6 @@ if sys.platform == "darwin":
 
         _has_truststore = True
     except ImportError:
-        _has_truststore = False
         import warnings
 
         warnings.warn(
