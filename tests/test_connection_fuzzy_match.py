@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from quads_client.connection import ConnectionManager, ConnectionError
 
 
@@ -30,6 +30,7 @@ def mock_config_fuzzy():
         config.get_all_servers()[name]["password"],
     )
     config.get_server_verify.return_value = True
+    config.get_server_api_token.return_value = ""
     return config
 
 
@@ -76,15 +77,11 @@ def test_resolve_server_stage_fqdn(mock_config_fuzzy):
 
 
 def test_connect_with_fqdn(mock_config_fuzzy, mock_api):
-    """Test connecting with FQDN when config has shortened name"""
-    with pytest.raises(Exception):
-        # This will fail at API level in test, but should resolve the name
-        conn = ConnectionManager(mock_config_fuzzy)
-        # Mock the QuadsApi to avoid actual connection
-        with pytest.raises(Exception):
-            conn.connect("quads2-dev.rdu2.scalelab.example.com")
-        # Should have resolved to the config key
-        assert conn._current_server == "quads2-dev.rdu2.scalelab"
+    """Test connecting with FQDN when config has shortened name resolves via URL match"""
+    conn = ConnectionManager(mock_config_fuzzy)
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn.connect("quads2-dev.rdu2.scalelab.example.com")
+    assert conn._current_server == "quads2-dev.rdu2.scalelab"
 
 
 def test_connect_unknown_server_error(mock_config_fuzzy):
