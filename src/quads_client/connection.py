@@ -178,17 +178,10 @@ class ConnectionManager:
 
         try:
             if api_token:
-                # API token mode: direct bearer auth, no login needed
+                # API token mode: bearer header set in __init__, no login() call needed
                 api = QuadsApi(base_url=url, username="", password="", verify=verify, api_token=api_token)
-                api.login()
-                # Validate token with a lightweight API call
-                try:
-                    api.get_version()
-                except Exception as e:
-                    error_str = str(e).lower()
-                    if "401" in error_str or "unauthorized" in error_str:
-                        raise ConnectionError(f"Failed to connect to {server_name}: API token is invalid or revoked.")
-                    raise
+                # Verify server is reachable
+                api.get_version()
                 self._api = api
                 self._token = api_token
                 self._username = username or None
