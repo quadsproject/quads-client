@@ -411,3 +411,93 @@ def test_cmd_register_403_guides_to_token_login(mock_shell):
     all_output = " ".join(error_calls + output_calls)
     assert "disabled" in all_output.lower()
     assert "token-login" in all_output
+
+
+def test_cmd_token_login_success(mock_shell):
+    """Test interactive token-login command with valid token"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.current_server = "test_server"
+    mock_shell.connection._detect_role_from_api = MagicMock(return_value="user")
+    mock_shell.config.get_server_url.return_value = "https://test.example.com"
+    mock_shell.config.get_server_verify.return_value = True
+
+    mock_api = MagicMock()
+    mock_api.get_version.return_value = {"version": "2.2.6"}
+
+    user_cmd = UserCommands(mock_shell)
+
+    with patch("builtins.input", return_value="bob@example.com"):
+        with patch("getpass.getpass", return_value="qat_valid_token_123"):
+            with patch("quads_lib.QuadsApi", return_value=mock_api):
+                user_cmd.cmd_token_login("")
+
+    mock_shell.config.update_server_api_token.assert_called_once_with(
+        "test_server", "bob@example.com", "qat_valid_token_123"
+    )
+    mock_shell.poutput.assert_any_call("OK: Token saved to configuration")
+
+
+def test_cmd_token_login_empty_email(mock_shell):
+    """Test token-login rejects empty email"""
+    mock_shell.connection.is_connected = True
+
+    user_cmd = UserCommands(mock_shell)
+
+    with patch("builtins.input", return_value=""):
+        user_cmd.cmd_token_login("")
+
+    mock_shell.perror.assert_called_with("Email is required")
+
+
+def test_cmd_token_login_empty_token(mock_shell):
+    """Test token-login rejects empty token"""
+    mock_shell.connection.is_connected = True
+
+    user_cmd = UserCommands(mock_shell)
+
+    with patch("builtins.input", return_value="bob@example.com"):
+        with patch("getpass.getpass", return_value=""):
+            user_cmd.cmd_token_login("")
+
+    mock_shell.perror.assert_called_with("Token is required")
+
+
+def test_cmd_token_login_not_connected(mock_shell):
+    """Test token-login when not connected"""
+    mock_shell.connection.is_connected = False
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_token_login("")
+
+    mock_shell.perror.assert_called()
+
+
+def test_cmd_login_already_authenticated_via_token(mock_shell):
+    """Test login command when already authenticated via qat_ token"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection._token = "qat_existing_token"
+    mock_shell.connection.username = "bob@example.com"
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_login("")
+
+    output = str(mock_shell.poutput.call_args_list)
+    assert "Already authenticated via SSO token" in output
+
+
+def test_cmd_login_no_credentials_suggests_token_login(mock_shell):
+    """Test login with no credentials suggests token-login"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = False
+    mock_shell.connection._token = None
+    mock_shell.connection.api.username = ""
+    mock_shell.connection.api.password = ""
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_login("")
+
+    error_output = str(mock_shell.perror.call_args_list)
+    assert "No credentials" in error_output
+    output = str(mock_shell.poutput.call_args_list)
+    assert "token-login" in output

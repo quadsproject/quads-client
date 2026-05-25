@@ -365,6 +365,57 @@ def test_connection_detect_role_fallback(mock_config, mock_api):
         assert conn._user_role == "user"
 
 
+def test_connection_api_token_invalid_raises(mock_config, mock_api):
+    """Test that an invalid/revoked api_token raises ConnectionError on connect"""
+    mock_config.get_server_api_token.return_value = "qat_bad_token"
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_bad_token",
+    }
+    mock_api.get_version.side_effect = Exception("401 Unauthorized")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="invalid or revoked"):
+            conn.connect("test_server")
+
+
+def test_detect_role_401_raises(mock_config, mock_api):
+    """Test that _detect_role_from_api raises on 401 from /users endpoint"""
+    mock_config.get_server_api_token.return_value = "qat_token_401"
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_token_401",
+    }
+    mock_api.get_version.return_value = {"version": "2.2.6"}
+    mock_api.get_user.side_effect = Exception("401 Unauthorized")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="invalid or revoked"):
+            conn.connect("test_server")
+
+
+def test_detect_role_403_raises(mock_config, mock_api):
+    """Test that _detect_role_from_api raises on 403 from /users endpoint"""
+    mock_config.get_server_api_token.return_value = "qat_token_403"
+    mock_config.get_server_credentials.return_value = ("user@example.com", "")
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_token_403",
+    }
+    mock_api.get_version.return_value = {"version": "2.2.6"}
+    mock_api.get_user.side_effect = Exception("403 Forbidden")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="sufficient permissions"):
+            conn.connect("test_server")
+
+
 def test_init_truststore_success_on_darwin():
     """Test _init_truststore calls inject_into_ssl on macOS"""
     import quads_client.connection as conn_module
