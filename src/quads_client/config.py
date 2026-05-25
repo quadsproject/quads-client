@@ -17,11 +17,12 @@ class QuadsClientConfig:
         self._load_config()
 
     def _normalize_server_fields(self, server: dict[str, Any]) -> dict[str, Any]:
-        """Normalize server dict fields to consistent order: url, username, password, verify"""
+        """Normalize server dict fields to consistent order"""
         return {
             "url": server.get("url", ""),
             "username": server.get("username", ""),
             "password": server.get("password", ""),
+            "api_token": server.get("api_token", ""),
             "verify": server.get("verify", True),
         }
 
@@ -92,13 +93,27 @@ class QuadsClientConfig:
             raise ConfigError(f"Server '{name}' verify must be true or false, not a path")
         return verify
 
+    def get_server_api_token(self, name: str) -> str:
+        server = self.get_server(name)
+        return server.get("api_token", "")
+
+    def update_server_api_token(self, name: str, username: str, api_token: str) -> None:
+        """Update server with API token auth, clearing password credentials"""
+        server = self.get_server(name)
+        server["username"] = username
+        server["password"] = ""
+        server["api_token"] = api_token
+        self._config["servers"][name] = self._normalize_server_fields(server)
+        self.save_config()
+
     def update_server_credentials(self, name: str, username: str, password: str) -> None:
         """Update server credentials in config file"""
         server = self.get_server(name)  # Validates server exists
 
-        # Update server dict with credentials
+        # Update server dict with credentials, clearing api_token
         server["username"] = username
         server["password"] = password
+        server["api_token"] = ""
 
         # Normalize field order before writing
         self._config["servers"][name] = self._normalize_server_fields(server)

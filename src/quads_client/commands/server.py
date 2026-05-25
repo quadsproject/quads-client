@@ -96,19 +96,22 @@ class ServerCommands:
             # STEP 2: Try to get capacity info (requires auth)
             capacity = "N/A"
             status = "Available"
+            api_token = server_config.get("api_token", "")
 
-            if not username or not password:
+            if not api_token and (not username or not password):
                 return status, version, "No credentials"
 
             # Try authenticated API calls for capacity
             try:
-                api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
-                login_result = api.login()
+                if api_token:
+                    api = QuadsApi(base_url=url, username="", password="", verify=verify, api_token=api_token)
+                else:
+                    api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
+                    login_result = api.login()
+                    if not login_result or login_result.get("status") == "failure":
+                        return "Auth failed", version, "N/A"
 
-                if not login_result or login_result.get("status") == "failure":
-                    return "Auth failed", version, "N/A"
-
-                # Login succeeded, get capacity
+                # Authenticated, get capacity
                 try:
                     all_hosts = api.get_hosts()
                     total_hosts = sum(1 for h in all_hosts if not h.get("broken") and not h.get("retired"))
@@ -133,98 +136,6 @@ class ServerCommands:
 
         except Exception:
             return "Offline", "N/A", "N/A"
-
-    def _get_server_status(self, name, url, server_config):
-        """Check if server is online and get version"""
-        try:
-            from quads_lib import QuadsApi
-
-            username = server_config.get("username", "")
-            password = server_config.get("password", "")
-            verify = server_config.get("verify", True)
-
-            if not username or not password:
-                return "No credentials", "N/A"
-
-            api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
-            # Login first to get authenticated
-            try:
-                login_result = api.login()
-                if not login_result or login_result.get("status") == "failure":
-                    return "Auth failed", "N/A"
-            except Exception:
-                # Login failed - server might be offline or credentials wrong
-                return "Offline", "N/A"
-
-            # Try to get version - if not implemented, still show as online
-            try:
-                version_info = api.get_version()
-
-                if isinstance(version_info, dict):
-                    version = version_info.get("version", "unknown")
-                    # Handle case where version might be None or empty
-                    if not version or version == "":
-                        version = "unknown"
-                elif isinstance(version_info, str):
-                    # API returns string like "QUADS version 2.2.6 maximilian"
-                    # Extract just the version number
-                    import re
-
-                    version_match = re.search(r"(\d+\.\d+\.\d+)", version_info)
-                    if version_match:
-                        version = version_match.group(1)
-                    else:
-                        # Couldn't parse version number, use full string
-                        version = version_info if version_info else "unknown"
-                else:
-                    version = "unknown"
-            except Exception:
-                # Version endpoint not implemented or failed - but we're still online
-                version = "unknown"
-
-            return "Online", version
-        except Exception:
-            return "Offline", "N/A"
-
-    def _get_server_info(self, name, url, server_config):
-        """Get server capacity info (% utilization + free/total)"""
-        try:
-            from quads_lib import QuadsApi
-
-            username = server_config.get("username", "")
-            password = server_config.get("password", "")
-            verify = server_config.get("verify", True)
-
-            if not username or not password:
-                return "N/A"
-
-            api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
-            # Login first to get authenticated
-            try:
-                login_result = api.login()
-                if not login_result or login_result.get("status") == "failure":
-                    return "N/A"
-            except Exception:
-                return "N/A"
-
-            # Get total hosts (excluding broken/retired)
-            all_hosts = api.get_hosts()
-            total_hosts = sum(1 for h in all_hosts if not h.get("broken") and not h.get("retired"))
-
-            if total_hosts == 0:
-                return "0% (0/0)"
-
-            # Get currently scheduled hosts
-            current_schedules = api.get_current_schedules({})
-            scheduled_hosts = len(set(s.get("host", {}).get("name", "") for s in current_schedules if s.get("host")))
-
-            # Calculate percentage and free hosts
-            percent_used = int((scheduled_hosts / total_hosts) * 100)
-            free_hosts = total_hosts - scheduled_hosts
-
-            return f"{percent_used}% ({free_hosts}/{total_hosts})"
-        except Exception:
-            return "N/A"
 
     def cmd_add_quads_server(self, args):
         """Interactive command to add a new QUADS server to configuration"""
@@ -272,16 +183,31 @@ class ServerCommands:
         verify_input = input("Enable SSL certificate verification? [Y/n]: ").strip().lower()
         verify = verify_input != "n"
 
-        # Optionally collect existing credentials
-        cred_input = input("Do you have existing credentials? [y/N]: ").strip().lower()
-        if cred_input == "y":
-            import getpass
+        # Authentication method
+        import getpass
 
-            username = input("Username (email): ").strip()
+        self.shell.poutput("\nAuthentication method:")
+        self.shell.poutput("  1) Username & Password")
+        self.shell.poutput("  2) SSO Token")
+        self.shell.poutput("  3) None (register later)")
+        auth_choice = input("Choice [1/2/3]: ").strip()
+        if auth_choice not in ("1", "2", "3"):
+            self.shell.perror("Invalid choice. Please enter 1, 2, or 3.")
+            return
+
+        username = ""
+        password = ""
+        api_token = ""
+
+        if auth_choice == "1":
+            username = input("Email: ").strip()
             password = getpass.getpass("Password: ").strip()
-        else:
-            username = ""
-            password = ""
+        elif auth_choice == "2":
+            username = input("Email: ").strip()
+            api_token = getpass.getpass("SSO Token: ").strip()
+            if api_token and not api_token.startswith("qat_"):
+                self.shell.perror("Invalid token format: must start with qat_")
+                return
 
         # Test connection (without credentials - just check if server is reachable)
         self.shell.poutput(f"\nTesting connection to {server_url}...")
@@ -311,6 +237,7 @@ class ServerCommands:
             "url": server_url,
             "username": username,
             "password": password,
+            "api_token": api_token,
             "verify": verify,
         }
 
@@ -325,14 +252,18 @@ class ServerCommands:
                 self.rich_console.print_success(f"\nServer '{server_name}' added successfully!")
                 self.rich_console.print_info("\nNext steps:")
                 self.rich_console.print_info(f"  1. Connect to server: connect {server_name}")
-                if not username:
-                    self.rich_console.print_info("  2. Register account: register <email> <password>")
+                if not username and not api_token:
+                    self.rich_console.print_info("  2. Authenticate:")
+                    self.rich_console.print_info("     token-login              (SSO token)")
+                    self.rich_console.print_info("     register <email> <pass>  (new account)")
             else:
                 self.shell.poutput(f"\nOK: Server '{server_name}' added successfully!")
                 self.shell.poutput("\nNext steps:")
                 self.shell.poutput(f"  1. Connect to server: connect {server_name}")
-                if not username:
-                    self.shell.poutput("  2. Register account: register <email> <password>")
+                if not username and not api_token:
+                    self.shell.poutput("  2. Authenticate:")
+                    self.shell.poutput("     token-login              (SSO token)")
+                    self.shell.poutput("     register <email> <pass>  (new account)")
         except Exception as e:
             self.shell.perror(f"Failed to save configuration: {e}")
 
@@ -400,6 +331,7 @@ class ServerCommands:
             "url": url,
             "username": username,
             "password": password,
+            "api_token": "",
             "verify": verify,
         }
 
@@ -419,7 +351,7 @@ class ServerCommands:
         except Exception as e:
             return (False, f"Failed to save configuration: {e}", None)
 
-    def edit_server_programmatic(self, name, url=None, username=None, password=None, verify=None):
+    def edit_server_programmatic(self, name, url=None, username=None, password=None, verify=None, api_token=None):
         """
         Non-interactive server edit for GUI and scripting.
 
@@ -429,6 +361,7 @@ class ServerCommands:
             username: New username (optional, None = no change)
             password: New password (optional, None = no change)
             verify: New SSL verification setting (optional, None = no change)
+            api_token: New API token (optional, None = no change)
 
         Returns:
             (success: bool, message: str)
@@ -454,6 +387,9 @@ class ServerCommands:
                 server["username"] = username
             if password is not None:
                 server["password"] = password
+            if api_token is not None:
+                server["api_token"] = api_token
+                server["password"] = ""
             if verify is not None:
                 server["verify"] = verify
 
@@ -539,12 +475,12 @@ class ServerCommands:
 
     def cmd_edit_server(self, args):
         """Edit an existing server.
-        Usage: edit-server <name> [url URL] [username USER] [password PASS] [verify true|false]
+        Usage: edit-server <name> [url URL] [username USER] [password PASS] [token TOKEN] [verify true|false]
         """
         parts = args.split()
         if len(parts) < 1:
             self.shell.perror(
-                "Usage: edit-server <name> [url URL] [username USER] [password PASS] [verify true|false]"
+                "Usage: edit-server <name> [url URL] [username USER] [password PASS] [token TOKEN] [verify true|false]"
             )
             return
 
@@ -563,6 +499,9 @@ class ServerCommands:
             elif parts[i] == "password" and i + 1 < len(parts):
                 updates["password"] = parts[i + 1]
                 i += 2
+            elif parts[i] == "token" and i + 1 < len(parts):
+                updates["api_token"] = parts[i + 1]
+                i += 2
             elif parts[i] == "verify" and i + 1 < len(parts):
                 updates["verify"] = parts[i + 1].lower() == "true"
                 i += 2
@@ -580,6 +519,7 @@ class ServerCommands:
             username=updates.get("username"),
             password=updates.get("password"),
             verify=updates.get("verify"),
+            api_token=updates.get("api_token"),
         )
 
         if success:

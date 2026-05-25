@@ -32,6 +32,7 @@ class RichConsole:
             "[dim]https://quads.dev[/dim]\n\n"
             f"{add_server_line}"
             "[yellow]Type 'connect' to connect to a server[/yellow]\n"
+            "[yellow]Type 'token-login' to authenticate with an SSO token[/yellow]\n"
             "[yellow]Type 'register' to create a new account[/yellow]\n"
             "[yellow]Type 'help' for available commands[/yellow]\n\n"
             "[dim]Configuration: ~/.config/quads/quads-client.yml[/dim]\n"

@@ -16,7 +16,7 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
   - **Full-Featured Multi-Platform GUI**: Modern graphical interface for Linux/macOS with onboarding wizard, dark/light themes, and visual host management
 - **Multi-Server Support**: Connect to and manage multiple QUADS servers from a single interface
 - **Session Management**: Maintain multiple authenticated connections simultaneously and switch between them instantly
-- **Bearer Token Authentication**: Secure JWT-based authentication via python-quads-lib
+- **SSO API Token & JWT Authentication**: Supports `qat_`-prefixed SSO tokens (preferred) and legacy username/password via python-quads-lib
 - **Interactive Shell**: Built on cmd2 with command history and comprehensive tab completion
 - **Intelligent Tab Completion**: Context-aware autocompletion for all commands, arguments, cloud names, hostnames, assignment IDs, and server names
 - **Rich UI**: Beautiful terminal output with colors, tables, and status indicators powered by python-rich
@@ -178,8 +178,13 @@ Use the interactive `add_quads_server` command:
 quads-client
 add_quads_server
 # Follow the prompts to add your QUADS server
-# (includes optional credential entry for existing users)
+# Choose authentication: SSO Token, Username & Password, or None (register later)
 connect <server_name>
+
+# Authenticate with SSO token (preferred):
+token-login
+
+# Or register a new account (legacy):
 register your.email@example.com YourPassword123
 ```
 
@@ -188,8 +193,9 @@ register your.email@example.com YourPassword123
 Alternatively, manually create the configuration file using the provided [example configuration](conf/quads-client.yml.example) as a template.
 
 **Configuration Notes**:
-- For new users: Leave `username` and `password` blank (or skip credentials during `add_quads_server`). Use the `register` command after connecting — if the account already exists, it will auto-login.
-- For existing users: Enter credentials during `add_quads_server` or fill them into the config file to login automatically on connect.
+- **SSO token auth (preferred)**: Set `api_token` to your `qat_`-prefixed token from the QUADS web portal (Profile > API Tokens). No password needed.
+- **Legacy password auth**: Set `username` and `password`. Use the `register` command after connecting if you don't have an account yet.
+- When `api_token` is set, it takes precedence over username/password.
 - Specify the base URL only (no `/api/v3/` path, no port `:5000`). The client automatically appends the API path.
 - `verify: true` enables SSL certificate verification (recommended). Set to `false` only for development/testing with self-signed certificates.
 
@@ -413,9 +419,14 @@ EOF
 Quick start for regular users:
 
 ```bash
-# 1. Connect and register (if account already exists, register will auto-login)
+# 1. Connect and authenticate
 quads-client
 connect quads-prod.example.com
+
+# Option A: SSO token (preferred)
+token-login
+
+# Option B: Register new account (legacy)
 register your.email@example.com YourPassword123
 
 # 2. Schedule hosts (automatic for 5 days or until Sunday 21:00 UTC)
@@ -650,12 +661,14 @@ servers:
     url: https://quads2-dev.rdu2.scalelab.example.com
     username: admin+wfoster@example.com
     password: ""
+    api_token: ""
     verify: true
     
   quads2-dev:
     url: https://quads2-dev.rdu2.scalelab.example.com  # Same server!
     username: wfoster@example.com
     password: ""
+    api_token: "qat_your_token_here"
     verify: true
 ```
 
@@ -716,7 +729,7 @@ add_quads_server     - Interactive wizard to add a new QUADS server
 add_server quads3 https://quads3.example.com user@example.com password123 [noverify]  
                      - Add new server to configuration (advanced)
 edit_server quads3 [url https://new.example.com] [username newuser@example.com] 
-                   [password newpass] [verify true|false]
+                   [password newpass] [token qat_...] [verify true|false]
                      - Edit existing server configuration
 rm_server quads3     - Remove server from configuration
 config_reload        - Reload configuration from file
@@ -729,9 +742,10 @@ add_quads_server
 #   1. Enter server name (e.g., quads1.example.com)
 #   2. Enter server URL (e.g., https://quads1.example.com)
 #   3. Enable SSL verification? [Y/n]
-#   4. Do you have existing credentials? [y/N]
-#      (If yes, enter username and password - they'll be saved to config)
-# Then: connect and register (or just connect if credentials were provided)
+#   4. Authentication method:
+#      1) Username & Password
+#      2) SSO Token (preferred - from QUADS web portal Profile > API Tokens)
+#      3) None (register later)
 ```
 
 ### Cloud Management
@@ -776,8 +790,9 @@ cloud_only cloud05
 Self-Scheduling Mode allows regular (non-admin) users to schedule hosts without admin intervention. The QUADS server automatically creates assignments and clouds - **no tickets required**.
 
 ```
-register <email> <password>                      - Register a new user
-login                                            - Explicit login
+token-login                                      - Login with an SSO API token (preferred)
+register <email> <password>                      - Register a new user (legacy)
+login                                            - Explicit login (legacy password auth)
 whoami                                           - Show current user information
 schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIONS]
                                                  - Schedule hosts (SSM mode)
@@ -983,14 +998,19 @@ When a command requires elevated permissions, the server will return a 403 Forbi
 
 ### User Registration & Assignments
 
-Users can register accounts directly from the CLI:
+Two authentication methods are supported:
 
+**SSO Token (preferred):**
+1. **Obtain a token** from the QUADS web portal under Profile > API Tokens
+2. **Connect** to a server and run `token-login`
+3. Token is saved to your config file — no password needed
+
+**Legacy username/password:**
 1. **Connect** to a server (credentials can be blank in config)
 2. **Register** with `register <email> <password>`
    - If the account already exists, the client will auto-login and save credentials
-   - If auto-login fails (wrong password), guidance is shown to update credentials via `edit_server`
+   - If registration is disabled (SSO-only server), guidance is shown to use `token-login`
 3. Credentials are automatically saved to your config file
-4. **Login** with the `login` command or reconnect
 
 SSM users can:
 - **Schedule** hosts with unified `schedule` command (count/hosts/host-list syntax)
@@ -1075,7 +1095,7 @@ quads-client/
 
 - Python >= 3.13
 - cmd2 >= 2.0.0
-- quads-lib >= 0.1.9
+- quads-lib >= 0.1.15
 - PyYAML >= 6.0.0
 - argcomplete >= 3.1.2
 - tabulate >= 0.9.0

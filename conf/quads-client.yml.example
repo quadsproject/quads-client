@@ -3,11 +3,13 @@ servers:
     url: https://quads1.rdu2.scalelab.example.com
     username: ""
     password: ""
+    api_token: ""
     verify: true
   quads2.rdu2.scalelab:
     url: https://quads2.rdu2.scalelab.example.com
     username: ""
     password: ""
+    api_token: ""
     verify: true
 
 default_server: quads1.rdu2.scalelab

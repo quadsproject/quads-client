@@ -189,3 +189,21 @@ def test_connect_by_name_still_works(mock_shell):
     # Should still work with server name
     mock_shell.session_manager.create_session.assert_called_once_with("server1", None)
     mock_session.connection.connect.assert_called_once_with("server1")
+
+
+def test_connect_registration_mode_suggests_token_login(mock_shell):
+    """Test that registration mode message suggests both token-login and register"""
+    mock_session = MagicMock()
+    mock_session.id = "1"
+    mock_session.connection = MagicMock()
+    mock_session.connection.connect = MagicMock()
+    mock_session.connection._registration_mode = True
+    mock_shell.session_manager.create_session.return_value = mock_session
+    mock_shell.quiet = False
+
+    conn_cmd = ConnectionCommands(mock_shell)
+    conn_cmd.cmd_connect("test_server")
+
+    output = " ".join(str(c) for c in mock_shell.poutput.call_args_list)
+    assert "token-login" in output
+    assert "register" in output

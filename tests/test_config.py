@@ -318,6 +318,76 @@ def test_save_config_preserves_gui_preferences(tmp_path):
     assert config2.config_data["gui_preferences"]["confirm_terminate"] is False
 
 
+def test_get_server_api_token_default(tmp_path):
+    """Test api_token defaults to empty string when not set"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    assert config.get_server_api_token("test_server") == ""
+
+
+def test_get_server_api_token_set(tmp_path):
+    """Test retrieving a configured api_token"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {
+        "servers": {
+            "test_server": {
+                "url": "https://test.example.com",
+                "api_token": "qat_test123",
+            }
+        }
+    }
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    assert config.get_server_api_token("test_server") == "qat_test123"
+
+
+def test_update_server_api_token(tmp_path):
+    """Test updating server with api_token clears password"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {
+        "servers": {
+            "test_server": {
+                "url": "https://test.example.com",
+                "username": "old@example.com",
+                "password": "oldpass",
+            }
+        }
+    }
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    config.update_server_api_token("test_server", "new@example.com", "qat_newtoken")
+
+    assert config.get_server_api_token("test_server") == "qat_newtoken"
+    username, password = config.get_server_credentials("test_server")
+    assert username == "new@example.com"
+    assert password == ""
+
+    # Verify persisted to file
+    with open(config_file, "r") as f:
+        saved_data = yaml.safe_load(f)
+    assert saved_data["servers"]["test_server"]["api_token"] == "qat_newtoken"
+    assert saved_data["servers"]["test_server"]["password"] == ""
+
+
+def test_normalize_server_fields_includes_api_token(tmp_path):
+    """Test that _normalize_server_fields includes api_token"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com", "username": "u", "password": "p"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    config.save_config()
+
+    with open(config_file, "r") as f:
+        saved_data = yaml.safe_load(f)
+    assert "api_token" in saved_data["servers"]["test_server"]
+
+
 def test_save_config_write_error(tmp_path):
     """Test save_config() error handling"""
     config_file = tmp_path / "quads-client.yml"

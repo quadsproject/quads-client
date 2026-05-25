@@ -1,3 +1,5 @@
+import getpass
+
 from tabulate import tabulate
 
 from quads_client.arg_parser import parse_schedule_ssm_args
@@ -41,6 +43,16 @@ class UserCommands:
             self.shell.connection.api.username = email
             self.shell.connection.api.password = password
             result = self.shell.connection.api.register()
+
+            # Check for registration disabled (require_auth_provider: true)
+            if isinstance(result, dict) and result.get("status_code") == 403:
+                self.shell.perror("Registration is disabled on this server.")
+                self.shell.poutput("This server requires SSO authentication.")
+                self.shell.poutput("To authenticate with an SSO token:")
+                self.shell.poutput("  1. Visit the QUADS web portal and log in via SSO")
+                self.shell.poutput("  2. Go to Profile > API Tokens and generate a token")
+                self.shell.poutput("  3. Run: token-login")
+                return
 
             # Check if user already exists - attempt auto-login
             if isinstance(result, dict) and result.get("message"):
@@ -177,6 +189,13 @@ class UserCommands:
             self.shell.connection.api.password = password
             result = self.shell.connection.api.register()
 
+            if isinstance(result, dict) and result.get("status_code") == 403:
+                return (
+                    False,
+                    "Registration is disabled. Use the SSO Token tab to authenticate.",
+                    None,
+                )
+
             if isinstance(result, dict) and result.get("message"):
                 if "already exists" in result["message"].lower():
                     return (False, "Email already registered. Please use Login instead.", None)
@@ -186,17 +205,106 @@ class UserCommands:
         except Exception as e:
             return (False, f"Registration failed: {e}", None)
 
+    def token_login_programmatic(self, email, token):
+        """
+        Non-interactive SSO token login for GUI and scripting.
+
+        Args:
+            email: User email (identity anchor)
+            token: qat_-prefixed API token
+
+        Returns:
+            (success: bool, message: str, role: str or None)
+        """
+        if not self.shell.connection or not self.shell.connection.is_connected:
+            return (False, "Not connected to any server", None)
+
+        if not token.startswith("qat_"):
+            return (False, "Invalid token format: must start with qat_", None)
+
+        try:
+            from quads_lib import QuadsApi
+
+            server_name = self.shell.connection.current_server
+            url = self.shell.config.get_server_url(server_name)
+            verify = self.shell.config.get_server_verify(server_name)
+
+            api = QuadsApi(base_url=url, username="", password="", verify=verify, api_token=token)
+
+            # Verify token works with a lightweight API call
+            api.get_version()
+
+            self.shell.connection._api = api
+            self.shell.connection._token = token
+            self.shell.connection._username = email
+            self.shell.connection._registration_mode = False
+
+            # Detect role via /me endpoint
+            role = self.shell.connection._detect_role_from_api()
+            self.shell.connection._user_role = role
+
+            if hasattr(self.shell, "_update_visible_commands"):
+                self.shell._update_visible_commands()
+
+            return (True, "Authenticated via SSO token", role)
+
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "401" in error_msg or "unauthorized" in error_msg:
+                return (False, "Invalid or revoked token", None)
+            return (False, f"Token authentication failed: {e}", None)
+
+    def cmd_token_login(self, args):
+        """Login with an SSO API token. Usage: token-login"""
+        if not self._require_connection():
+            return
+
+        email = input("Email: ").strip()
+        if not email:
+            self.shell.perror("Email is required")
+            return
+
+        token = getpass.getpass("SSO Token: ")
+        if not token:
+            self.shell.perror("Token is required")
+            return
+
+        success, message, role = self.token_login_programmatic(email, token)
+
+        if success:
+            server_name = self.shell.connection.current_server
+            if server_name:
+                self.shell.config.update_server_api_token(server_name, email, token)
+                self.shell.poutput("OK: Token saved to configuration")
+            self.shell._update_prompt()
+            self.shell._update_visible_commands()
+            self.shell.poutput(f"OK: {message} as {email}")
+            if role:
+                self.shell.poutput(f"  Role: {role}")
+        else:
+            self.shell.perror(message)
+
     def cmd_login(self, args):
         """Explicit login. Usage: login"""
         if not self._require_connection():
             return
+
+        # Check if already authenticated via API token
+        if self.shell.connection.is_authenticated:
+            token = getattr(self.shell.connection, "_token", None)
+            if token and token.startswith("qat_"):
+                self.shell.poutput(f"Already authenticated via SSO token as {self.shell.connection.username}")
+                return
 
         # If we already have credentials from API instance, use them
         email = getattr(self.shell.connection.api, "username", None)
         password = getattr(self.shell.connection.api, "password", None)
 
         if not email or not password:
-            self.shell.perror("No credentials configured. Use 'register' or configure credentials in config file.")
+            self.shell.perror("No credentials configured.")
+            self.shell.poutput("To authenticate, use one of:")
+            self.shell.poutput("  token-login              (SSO token)")
+            self.shell.poutput("  register <email> <pass>  (new account)")
             return
 
         success, message, role = self.login_programmatic(email, password)

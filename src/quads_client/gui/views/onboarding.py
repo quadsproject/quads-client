@@ -139,6 +139,32 @@ class OnboardingWizard(tk.Toplevel):
         notebook = ttk.Notebook(self.content_frame)
         notebook.pack(fill=tk.BOTH, expand=True, padx=40, pady=10)
 
+        # SSO Token tab (preferred)
+        token_frame = ttk.Frame(notebook, padding=20)
+        notebook.add(token_frame, text="SSO Token")
+
+        ttk.Label(token_frame, text="Email:").grid(row=0, column=0, sticky=tk.W, pady=10)
+        self.token_email_entry = ttk.Entry(token_frame, width=30)
+        self.token_email_entry.grid(row=0, column=1, pady=10, padx=10)
+
+        ttk.Label(token_frame, text="SSO Token:").grid(row=1, column=0, sticky=tk.W, pady=10)
+        self.token_entry = ttk.Entry(token_frame, width=30, show="*")
+        self.token_entry.grid(row=1, column=1, pady=10, padx=10)
+
+        ttk.Button(token_frame, text="Connect", command=self._do_token_login).grid(
+            row=2, column=1, pady=20, sticky=tk.E
+        )
+
+        token_tip = ttk.Label(
+            token_frame,
+            text="Get your token from the QUADS web portal under Profile > API Tokens.",
+            font=("TkDefaultFont", 9),
+            foreground="gray",
+            wraplength=350,
+        )
+        token_tip.grid(row=3, column=0, columnspan=2, pady=(10, 0), sticky=tk.W)
+
+        # Login tab
         login_frame = ttk.Frame(notebook, padding=20)
         notebook.add(login_frame, text="Login")
 
@@ -152,16 +178,16 @@ class OnboardingWizard(tk.Toplevel):
 
         ttk.Button(login_frame, text="Login", command=self._do_login).grid(row=2, column=1, pady=20, sticky=tk.E)
 
-        # Add helpful tip for new users
         login_tip = ttk.Label(
             login_frame,
-            text="💡 Don't have an account? Click the 'Register' tab above to create one.",
+            text="For legacy username/password authentication.",
             font=("TkDefaultFont", 9),
             foreground="gray",
             wraplength=350,
         )
         login_tip.grid(row=3, column=0, columnspan=2, pady=(10, 0), sticky=tk.W)
 
+        # Register tab
         register_frame = ttk.Frame(notebook, padding=20)
         notebook.add(register_frame, text="Register")
 
@@ -181,17 +207,18 @@ class OnboardingWizard(tk.Toplevel):
             row=3, column=1, pady=20, sticky=tk.E
         )
 
-        # Add helpful tip for existing users
         register_tip = ttk.Label(
             register_frame,
-            text="💡 Already have an account? Click the 'Login' tab above to sign in.",
+            text="Create a new account with email and password.",
             font=("TkDefaultFont", 9),
             foreground="gray",
             wraplength=350,
         )
         register_tip.grid(row=4, column=0, columnspan=2, pady=(10, 0), sticky=tk.W)
 
-        self.status_label = ttk.Label(self.content_frame, text="", foreground="#00ccff")
+        self.status_label = ttk.Label(
+            self.content_frame, text="", foreground=self.parent.theme_manager.get_color("accent")
+        )
         self.status_label.pack(pady=(5, 10))
 
     def _show_done(self):
@@ -298,7 +325,7 @@ class OnboardingWizard(tk.Toplevel):
             return
 
         try:
-            self.status_label.config(text="Logging in...", foreground="#00ccff")
+            self.status_label.config(text="Logging in...", foreground=self.parent.theme_manager.get_color("accent"))
             self.update()
 
             # Use programmatic login method (DRY - reuses CLI logic)
@@ -384,7 +411,7 @@ class OnboardingWizard(tk.Toplevel):
             return
 
         try:
-            self.status_label.config(text="Registering...", foreground="#00ccff")
+            self.status_label.config(text="Registering...", foreground=self.parent.theme_manager.get_color("accent"))
             self.update()
 
             # Capture output to check for success
@@ -398,11 +425,27 @@ class OnboardingWizard(tk.Toplevel):
             # Check if registration was successful by looking at captured messages
             success = False
             already_exists = False
+            registration_disabled = False
             for level, msg in self.shell._captured_messages:
                 if "OK: User registered successfully" in msg or "OK: Logged in successfully" in msg:
                     success = True
                 elif "already exists" in msg.lower():
                     already_exists = True
+                elif "registration is disabled" in msg.lower():
+                    registration_disabled = True
+
+            if registration_disabled:
+                self.status_label.config(
+                    text="Registration disabled - use SSO Token tab",
+                    foreground=self.parent.theme_manager.get_color("warning"),
+                )
+                messagebox.showinfo(
+                    "Registration Disabled",
+                    "This server requires SSO authentication.\n\n"
+                    "Please use the 'SSO Token' tab to authenticate with\n"
+                    "a token from the QUADS web portal.",
+                )
+                return
 
             if already_exists:
                 self.status_label.config(
@@ -434,7 +477,10 @@ class OnboardingWizard(tk.Toplevel):
                 self.after(1500, lambda: self._show_step(3))
             elif success:
                 # Registered but not logged in - use programmatic login (DRY)
-                self.status_label.config(text="Registration successful, logging in...", foreground="#00ccff")
+                self.status_label.config(
+                    text="Registration successful, logging in...",
+                    foreground=self.parent.theme_manager.get_color("accent"),
+                )
                 self.update()
 
                 try:
@@ -495,6 +541,64 @@ class OnboardingWizard(tk.Toplevel):
                 text=f"Registration failed: {e}", foreground=self.parent.theme_manager.get_color("error")
             )
             messagebox.showerror("Registration Failed", str(e))
+
+    def _do_token_login(self):
+        """Perform SSO token login"""
+        email = self.token_email_entry.get().strip()
+        token = self.token_entry.get().strip()
+
+        if not email or not token:
+            self.status_label.config(
+                text="Email and token required", foreground=self.parent.theme_manager.get_color("error")
+            )
+            return
+
+        if not token.startswith("qat_"):
+            self.status_label.config(
+                text="Invalid token format (must start with qat_)",
+                foreground=self.parent.theme_manager.get_color("error"),
+            )
+            return
+
+        try:
+            self.status_label.config(
+                text="Authenticating...", foreground=self.parent.theme_manager.get_color("accent")
+            )
+            self.update()
+
+            success, message, role = self.shell.user_commands.token_login_programmatic(email, token)
+
+            if success:
+                server_name = self.shell.connection.current_server
+                if server_name:
+                    try:
+                        self.shell.config.update_server_api_token(server_name, email, token)
+                    except Exception:
+                        pass
+
+                self.status_label.config(
+                    text="✓ Token authentication successful!",
+                    foreground=self.parent.theme_manager.get_color("success"),
+                )
+                self.next_button.config(state=tk.NORMAL)
+
+                if hasattr(self.parent, "update_status"):
+                    server_name = self.shell.connection.current_server
+                    username = self.shell.connection.username
+                    self.parent.update_status(f"Connected to {server_name} as {username}")
+                if hasattr(self.parent, "update_role_visibility"):
+                    self.parent.update_role_visibility()
+
+                self.after(1500, lambda: self._show_step(3))
+            else:
+                self.status_label.config(
+                    text=f"Authentication failed: {message}",
+                    foreground=self.parent.theme_manager.get_color("error"),
+                )
+        except Exception as e:
+            self.status_label.config(
+                text=f"Authentication failed: {e}", foreground=self.parent.theme_manager.get_color("error")
+            )
 
     def _skip_setup(self):
         """Skip the setup wizard"""

@@ -267,6 +267,150 @@ def test_connection_error_timeout(mock_config, mock_api):
             conn.connect("test_server")
 
 
+def test_connection_connect_with_api_token(mock_config, mock_api):
+    """Test connecting with a qat_ API token"""
+    mock_config.get_server_api_token.return_value = "qat_test_token_abc"
+    mock_config.get_server_credentials.return_value = ("bob@example.com", "")
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_test_token_abc",
+    }
+    mock_api.get_user.return_value = {"email": "bob@example.com", "roles": ["user"]}
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        assert conn.is_connected
+        assert conn.is_authenticated
+        assert conn._token == "qat_test_token_abc"
+        assert conn._username == "bob@example.com"
+        assert conn._registration_mode is False
+
+
+def test_connection_connect_api_token_precedence(mock_config, mock_api):
+    """Test that api_token takes precedence over username/password"""
+    mock_config.get_server_api_token.return_value = "qat_token_wins"
+    mock_config.get_server_credentials.return_value = ("user@example.com", "password123")
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_token_wins",
+    }
+    mock_api.get_user.return_value = {"email": "user@example.com", "roles": ["admin"]}
+
+    with patch("quads_client.connection.QuadsApi") as mock_quads_api:
+        mock_quads_api.return_value = mock_api
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        call_kwargs = mock_quads_api.call_args[1]
+        assert call_kwargs.get("api_token") == "qat_token_wins"
+        assert conn._token == "qat_token_wins"
+
+
+def test_connection_refresh_token_qat_no_refresh(mock_config, mock_api):
+    """Test that qat_ tokens return False on refresh (permanent, cannot be refreshed)"""
+    mock_config.get_server_api_token.return_value = "qat_permanent"
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_permanent",
+    }
+    mock_api.get_user.return_value = {"email": "bob@example.com", "roles": ["user"]}
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+        mock_api.login.reset_mock()
+
+        result = conn.refresh_token()
+        assert result is False
+        mock_api.login.assert_not_called()
+
+
+def test_connection_detect_role_admin(mock_config, mock_api):
+    """Test role detection returns admin from /me endpoint"""
+    mock_config.get_server_api_token.return_value = "qat_admin_token"
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_admin_token",
+    }
+    mock_api.get_user.return_value = {"email": "admin@example.com", "roles": ["admin"]}
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        assert conn._user_role == "admin"
+        assert conn.is_admin is True
+
+
+def test_connection_detect_role_fallback(mock_config, mock_api):
+    """Test role detection defaults to user when /me fails"""
+    mock_config.get_server_api_token.return_value = "qat_fallback_token"
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_fallback_token",
+    }
+    mock_api.get_user.side_effect = Exception("404 Not Found")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        assert conn._user_role == "user"
+
+
+def test_connection_api_token_invalid_raises(mock_config, mock_api):
+    """Test that an invalid/revoked api_token raises ConnectionError on connect"""
+    mock_config.get_server_api_token.return_value = "qat_bad_token"
+    mock_api.get_version.side_effect = Exception("401 Unauthorized")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="Authentication failed"):
+            conn.connect("test_server")
+
+
+def test_detect_role_401_raises(mock_config, mock_api):
+    """Test that _detect_role_from_api raises on 401 from /users endpoint"""
+    mock_config.get_server_api_token.return_value = "qat_token_401"
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_token_401",
+    }
+    mock_api.get_version.return_value = {"version": "2.2.6"}
+    mock_api.get_user.side_effect = Exception("401 Unauthorized")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="invalid or revoked"):
+            conn.connect("test_server")
+
+
+def test_detect_role_403_raises(mock_config, mock_api):
+    """Test that _detect_role_from_api raises on 403 from /users endpoint"""
+    mock_config.get_server_api_token.return_value = "qat_token_403"
+    mock_config.get_server_credentials.return_value = ("user@example.com", "")
+    mock_api.login.return_value = {
+        "status_code": 201,
+        "status": "success",
+        "auth_token": "qat_token_403",
+    }
+    mock_api.get_version.return_value = {"version": "2.2.6"}
+    mock_api.get_user.side_effect = Exception("403 Forbidden")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="sufficient permissions"):
+            conn.connect("test_server")
+
+
 def test_init_truststore_success_on_darwin():
     """Test _init_truststore calls inject_into_ssl on macOS"""
     import quads_client.connection as conn_module

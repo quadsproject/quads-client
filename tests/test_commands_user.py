@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from quads_client.commands.user import UserCommands
 
 
@@ -310,3 +310,194 @@ def test_assignment_list_sorted_by_cloud_number(mock_shell):
     cloud20_pos = table_output.find("cloud20")
     cloud21_pos = table_output.find("cloud21")
     assert cloud06_pos < cloud20_pos < cloud21_pos
+
+
+def test_token_login_programmatic_success(mock_shell):
+    """Test successful SSO token login"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = False
+    mock_shell.connection.current_server = "test_server"
+    mock_shell.connection._detect_role_from_api = MagicMock(return_value="user")
+    mock_shell.config.get_server_url.return_value = "https://test.example.com"
+    mock_shell.config.get_server_verify.return_value = True
+
+    mock_api = MagicMock()
+    mock_api.get_version.return_value = {"version": "2.2.6"}
+
+    user_cmd = UserCommands(mock_shell)
+
+    with patch("quads_lib.QuadsApi", return_value=mock_api):
+        success, message, role = user_cmd.token_login_programmatic("bob@example.com", "qat_test_token_123")
+
+    assert success is True
+    assert "SSO token" in message
+    assert mock_shell.connection._token == "qat_test_token_123"
+    assert mock_shell.connection._username == "bob@example.com"
+    assert mock_shell.connection._registration_mode is False
+
+
+def test_token_login_programmatic_invalid_prefix(mock_shell):
+    """Test token login rejects tokens without qat_ prefix"""
+    mock_shell.connection.is_connected = True
+
+    user_cmd = UserCommands(mock_shell)
+    success, message, role = user_cmd.token_login_programmatic("bob@example.com", "invalid_token_no_prefix")
+
+    assert success is False
+    assert "qat_" in message
+
+
+def test_token_login_programmatic_not_connected(mock_shell):
+    """Test token login when not connected"""
+    mock_shell.connection = None
+
+    user_cmd = UserCommands(mock_shell)
+    success, message, role = user_cmd.token_login_programmatic("bob@example.com", "qat_some_token")
+
+    assert success is False
+    assert "Not connected" in message
+
+
+def test_token_login_programmatic_invalid_token(mock_shell):
+    """Test token login with a revoked/invalid token"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.current_server = "test_server"
+    mock_shell.config.get_server_url.return_value = "https://test.example.com"
+    mock_shell.config.get_server_verify.return_value = True
+
+    mock_api = MagicMock()
+    mock_api.get_version.side_effect = Exception("401 Unauthorized")
+
+    user_cmd = UserCommands(mock_shell)
+
+    with patch("quads_lib.QuadsApi", return_value=mock_api):
+        success, message, role = user_cmd.token_login_programmatic("bob@example.com", "qat_revoked_token")
+
+    assert success is False
+    assert "revoked" in message.lower() or "invalid" in message.lower()
+
+
+def test_register_programmatic_403_disabled(mock_shell):
+    """Test register_programmatic returns clean message when server returns 403"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.register.return_value = {
+        "status_code": 403,
+        "status": "fail",
+        "message": "Self-registration is disabled.",
+    }
+
+    user_cmd = UserCommands(mock_shell)
+    success, message, role = user_cmd.register_programmatic("new@example.com", "password123")
+
+    assert success is False
+    assert "disabled" in message.lower()
+    assert "SSO Token" in message
+
+
+def test_cmd_register_403_guides_to_token_login(mock_shell):
+    """Test cmd_register shows SSO token guidance when server returns 403"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.register.return_value = {
+        "status_code": 403,
+        "status": "fail",
+        "message": "Self-registration is disabled.",
+    }
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_register("new@example.com password123")
+
+    error_calls = [str(c) for c in mock_shell.perror.call_args_list]
+    output_calls = [str(c) for c in mock_shell.poutput.call_args_list]
+    all_output = " ".join(error_calls + output_calls)
+    assert "disabled" in all_output.lower()
+    assert "token-login" in all_output
+
+
+def test_cmd_token_login_success(mock_shell):
+    """Test interactive token-login command with valid token"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.current_server = "test_server"
+    mock_shell.connection._detect_role_from_api = MagicMock(return_value="user")
+    mock_shell.config.get_server_url.return_value = "https://test.example.com"
+    mock_shell.config.get_server_verify.return_value = True
+
+    mock_api = MagicMock()
+    mock_api.get_version.return_value = {"version": "2.2.6"}
+
+    user_cmd = UserCommands(mock_shell)
+
+    with patch("builtins.input", return_value="bob@example.com"):
+        with patch("getpass.getpass", return_value="qat_valid_token_123"):
+            with patch("quads_lib.QuadsApi", return_value=mock_api):
+                user_cmd.cmd_token_login("")
+
+    mock_shell.config.update_server_api_token.assert_called_once_with(
+        "test_server", "bob@example.com", "qat_valid_token_123"
+    )
+    mock_shell.poutput.assert_any_call("OK: Token saved to configuration")
+
+
+def test_cmd_token_login_empty_email(mock_shell):
+    """Test token-login rejects empty email"""
+    mock_shell.connection.is_connected = True
+
+    user_cmd = UserCommands(mock_shell)
+
+    with patch("builtins.input", return_value=""):
+        user_cmd.cmd_token_login("")
+
+    mock_shell.perror.assert_called_with("Email is required")
+
+
+def test_cmd_token_login_empty_token(mock_shell):
+    """Test token-login rejects empty token"""
+    mock_shell.connection.is_connected = True
+
+    user_cmd = UserCommands(mock_shell)
+
+    with patch("builtins.input", return_value="bob@example.com"):
+        with patch("getpass.getpass", return_value=""):
+            user_cmd.cmd_token_login("")
+
+    mock_shell.perror.assert_called_with("Token is required")
+
+
+def test_cmd_token_login_not_connected(mock_shell):
+    """Test token-login when not connected"""
+    mock_shell.connection.is_connected = False
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_token_login("")
+
+    mock_shell.perror.assert_called()
+
+
+def test_cmd_login_already_authenticated_via_token(mock_shell):
+    """Test login command when already authenticated via qat_ token"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection._token = "qat_existing_token"
+    mock_shell.connection.username = "bob@example.com"
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_login("")
+
+    output = str(mock_shell.poutput.call_args_list)
+    assert "Already authenticated via SSO token" in output
+
+
+def test_cmd_login_no_credentials_suggests_token_login(mock_shell):
+    """Test login with no credentials suggests token-login"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = False
+    mock_shell.connection._token = None
+    mock_shell.connection.api.username = ""
+    mock_shell.connection.api.password = ""
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_login("")
+
+    error_output = str(mock_shell.perror.call_args_list)
+    assert "No credentials" in error_output
+    output = str(mock_shell.poutput.call_args_list)
+    assert "token-login" in output

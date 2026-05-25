@@ -98,6 +98,26 @@ class ConnectionManager:
         except Exception:
             return None
 
+    def _detect_role_from_api(self) -> Optional[str]:
+        """Detect user role via /api/v3/users/{email} endpoint"""
+        if not self._api or not self._username:
+            return None
+        try:
+            user_info = self._api.get_user(self._username)
+            if isinstance(user_info, dict):
+                roles = user_info.get("roles", [])
+                if isinstance(roles, list) and roles:
+                    if "admin" in roles:
+                        return "admin"
+                    return roles[0]
+        except Exception as e:
+            error_str = str(e).lower()
+            if "401" in error_str or "unauthorized" in error_str:
+                raise ConnectionError("API token is invalid or revoked")
+            if "403" in error_str or "forbidden" in error_str:
+                raise ConnectionError("API token does not have sufficient permissions")
+        return "user"
+
     def _resolve_server_name(self, input_name: str) -> Optional[str]:
         """
         Resolve a server name using fuzzy matching.
@@ -149,6 +169,7 @@ class ConnectionManager:
         server_name = resolved_name
         url = self.config.get_server_url(server_name)
         username, password = self.config.get_server_credentials(server_name)
+        api_token = self.config.get_server_api_token(server_name)
         verify = self.config.get_server_verify(server_name)
 
         # Suppress SSL warnings when certificate verification is disabled
@@ -156,8 +177,18 @@ class ConnectionManager:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         try:
-            # Automatically use registration mode if credentials are missing
-            if not username or not password or registration_mode:
+            if api_token:
+                # API token mode: bearer header set in __init__, no login() call needed
+                api = QuadsApi(base_url=url, username="", password="", verify=verify, api_token=api_token)
+                # Verify server is reachable
+                api.get_version()
+                self._api = api
+                self._token = api_token
+                self._username = username or None
+                self._current_server = server_name
+                self._registration_mode = False
+                self._user_role = self._detect_role_from_api()
+            elif not username or not password or registration_mode:
                 # Registration mode: connect without login
                 api = QuadsApi(base_url=url, username="", password="", verify=verify)
                 self._api = api
@@ -230,6 +261,10 @@ class ConnectionManager:
     def refresh_token(self) -> bool:
         """Refresh the authentication token. Returns True if successful."""
         if not self._current_server or not self._api or self._registration_mode:
+            return False
+
+        # qat_ tokens are permanent and cannot be refreshed
+        if self._token and self._token.startswith("qat_"):
             return False
 
         try:

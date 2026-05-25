@@ -108,12 +108,11 @@ class QuadsClientShell(cmd2.Cmd):
         self.poutput("  1. Add your QUADS server:")
         self.poutput("     \033[1;36madd_quads_server\033[0m")
         self.poutput("     (Follow the interactive prompts)\n")
-        self.poutput("  2. Reload configuration:")
-        self.poutput("     \033[1;36mconfig_reload\033[0m\n")
-        self.poutput("  3. Connect to your server:")
+        self.poutput("  2. Connect to your server:")
         self.poutput("     \033[1;36mconnect <server_name>\033[0m\n")
-        self.poutput("  4. Register new account (or login if you have one):")
-        self.poutput("     \033[1;36mregister your.email@example.com YourPassword123\033[0m\n")
+        self.poutput("  3. Authenticate:")
+        self.poutput("     \033[1;36mtoken-login\033[0m              (SSO token)")
+        self.poutput("     \033[1;36mregister <email> <pass>\033[0m  (new account)\n")
         self.poutput("  Type \033[1mhelp\033[0m for more commands.\n")
 
     def _shorten_server_name(self, name):
@@ -303,6 +302,10 @@ class QuadsClientShell(cmd2.Cmd):
     def do_login(self, args):
         """Login to current server"""
         self.user_commands.cmd_login(args)
+
+    def do_token_login(self, args):
+        """Login with an SSO API token"""
+        self.user_commands.cmd_token_login(args)
 
     def do_whoami(self, args):
         """Show current user information"""
@@ -671,7 +674,7 @@ class QuadsClientShell(cmd2.Cmd):
                 return servers
 
             # Subsequent args: attributes
-            keywords = ["--url", "--username", "--password", "--verify"]
+            keywords = ["--url", "--username", "--password", "--token", "--verify"]
             if text:
                 return [k for k in keywords if k.startswith(text)]
             return keywords

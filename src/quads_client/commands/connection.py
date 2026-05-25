@@ -67,7 +67,9 @@ class ConnectionCommands:
             if not self.shell.quiet:
                 if session.connection._registration_mode:
                     self.shell.poutput(f"OK: Connected to {server_name} (session {session.id})")
-                    self.shell.poutput("  No credentials configured - use 'register' to create an account")
+                    self.shell.poutput("  No credentials configured. Authenticate with:")
+                    self.shell.poutput("    token-login              (SSO token)")
+                    self.shell.poutput("    register <email> <pass>  (new account)")
                 else:
                     username = session.connection.username
                     self.shell.poutput(f"OK: Connected to {server_name} as {username} (session {session.id})")
