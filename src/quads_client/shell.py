@@ -4,6 +4,7 @@ from quads_client.commands.available import AvailableCommands
 from quads_client.commands.cloud import CloudCommands
 from quads_client.commands.connection import ConnectionCommands
 from quads_client.commands.host import HostCommands
+from quads_client.commands.moves import MoveCommands
 from quads_client.commands.schedule import ScheduleCommands
 from quads_client.commands.server import ServerCommands
 from quads_client.commands.session import SessionCommands
@@ -74,6 +75,7 @@ class QuadsClientShell(cmd2.Cmd):
         self.host_commands = HostCommands(self)
         self.schedule_commands = ScheduleCommands(self)
         self.available_commands = AvailableCommands(self)
+        self.move_commands = MoveCommands(self)
         self.server_commands = ServerCommands(self)
         self.session_commands = SessionCommands(self)
 
@@ -139,7 +141,9 @@ class QuadsClientShell(cmd2.Cmd):
 
             self.prompt = f"{_rl(color)}{symbol} {session_info}({short_name}){admin_badge}{_rl(chr(27) + '[0m')} > "
         else:
-            self.prompt = f"{_rl(chr(27) + '[1;31m')}(disconnected){_rl(chr(27) + '[0m')} > "
+            self.prompt = (
+                f"{_rl(chr(27) + '[1;31m')}(disconnected){_rl(chr(27) + '[0m')} > "
+            )
 
     def _get_session_indicators(self) -> str:
         """Generate session indicator string like '[1:dev* 2:prod]'"""
@@ -206,11 +210,18 @@ class QuadsClientShell(cmd2.Cmd):
             "cloud_list",
             "ls_available",
             "os_list",
+            "move_status",
         ]
 
         # Get current authentication state
-        is_authenticated = self.connection and self.connection.is_authenticated if self.connection else False
-        is_admin = self.connection and self.connection.is_admin if self.connection else False
+        is_authenticated = (
+            self.connection and self.connection.is_authenticated
+            if self.connection
+            else False
+        )
+        is_admin = (
+            self.connection and self.connection.is_admin if self.connection else False
+        )
 
         # Reset hidden commands to permanently hidden list
         self.hidden_commands = list(self.permanently_hidden)
@@ -345,7 +356,16 @@ class QuadsClientShell(cmd2.Cmd):
             return []
 
         parts = line.split()
-        keywords = ["description", "nowipe", "vlan", "qinq", "os", "model", "ram", "host-list"]
+        keywords = [
+            "description",
+            "nowipe",
+            "vlan",
+            "qinq",
+            "os",
+            "model",
+            "ram",
+            "host-list",
+        ]
 
         # For admin mode, try to get cloud names
         if self.connection.is_admin:
@@ -400,7 +420,9 @@ class QuadsClientShell(cmd2.Cmd):
             # If no args yet, suggest assignment IDs
             if len(parts) <= 2:
                 username = self.connection.username.split("@")[0]
-                assignments = self.connection.api.filter_assignments({"owner": username, "active": True})
+                assignments = self.connection.api.filter_assignments(
+                    {"owner": username, "active": True}
+                )
                 ids = [str(a.get("id", "")) for a in assignments]
                 if text:
                     return [i for i in ids if i.startswith(text)]
@@ -409,7 +431,9 @@ class QuadsClientShell(cmd2.Cmd):
             # If assignment ID provided, suggest hostnames from that assignment
             if len(parts) >= 2:
                 assignment_id = parts[1]
-                schedules = self.connection.api.get_schedules({"assignment": assignment_id})
+                schedules = self.connection.api.get_schedules(
+                    {"assignment": assignment_id}
+                )
                 hostnames = [s.get("host", {}).get("name", "") for s in schedules]
                 if text:
                     return [h for h in hostnames if h.startswith(text)]
@@ -431,7 +455,9 @@ class QuadsClientShell(cmd2.Cmd):
                 cloud_names = [c.get("name") for c in clouds]
                 # Also get currently scheduled hostnames
                 schedules = self.connection.api.get_current_schedules({})
-                hostnames = list(set(s.get("host", {}).get("name", "") for s in schedules))
+                hostnames = list(
+                    set(s.get("host", {}).get("name", "") for s in schedules)
+                )
                 candidates = cloud_names + hostnames
                 if text:
                     return [c for c in candidates if c.startswith(text)]
@@ -458,7 +484,9 @@ class QuadsClientShell(cmd2.Cmd):
                 clouds = self.connection.api.get_clouds()
                 cloud_names = [c.get("name") for c in clouds]
                 schedules = self.connection.api.get_current_schedules({})
-                hostnames = list(set(s.get("host", {}).get("name", "") for s in schedules))
+                hostnames = list(
+                    set(s.get("host", {}).get("name", "") for s in schedules)
+                )
                 candidates = cloud_names + hostnames
                 if text:
                     return [c for c in candidates if c.startswith(text)]
@@ -504,7 +532,16 @@ class QuadsClientShell(cmd2.Cmd):
                 return cloud_names
 
             # Subsequent args: attributes
-            keywords = ["cloud-owner", "description", "cloud-ticket", "cc-users", "vlan", "qinq", "wipe", "nowipe"]
+            keywords = [
+                "cloud-owner",
+                "description",
+                "cloud-ticket",
+                "cc-users",
+                "vlan",
+                "qinq",
+                "wipe",
+                "nowipe",
+            ]
             if text:
                 return [k for k in keywords if k.startswith(text)]
             return keywords
@@ -759,6 +796,10 @@ class QuadsClientShell(cmd2.Cmd):
         """List available hosts"""
         self.available_commands.cmd_ls_available(args)
 
+    def do_move_status(self, args):
+        """Show move/rebuild progress. Usage: move_status [hostname]"""
+        self.move_commands.cmd_move_status(args)
+
     def do_servers(self, args):
         """List all configured servers"""
         self.server_commands.cmd_servers(args)
@@ -871,7 +912,9 @@ class QuadsClientShell(cmd2.Cmd):
         # Check for "connect <server> <command>" pattern in one-shot mode
         actual_command = cmd_str
         if cmd_str.startswith("connect "):
-            parts = cmd_str.split(None, 2)  # Split into at most 3 parts: ["connect", server, rest]
+            parts = cmd_str.split(
+                None, 2
+            )  # Split into at most 3 parts: ["connect", server, rest]
 
             # If there are 3+ parts and the third part doesn't look like a connect keyword
             if len(parts) >= 3:
@@ -894,7 +937,9 @@ class QuadsClientShell(cmd2.Cmd):
                     actual_command = next_command
 
         # Auto-connect if needed (for commands without explicit connect)
-        if not actual_command.startswith("connect") and not self._auto_connect_for_oneshot(actual_command):
+        if not actual_command.startswith(
+            "connect"
+        ) and not self._auto_connect_for_oneshot(actual_command):
             return 3  # Exit code 3: Connection error
 
         # Execute the command

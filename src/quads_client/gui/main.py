@@ -17,6 +17,7 @@ from quads_client.gui.views.clouds import CloudsView
 from quads_client.gui.views.hosts import HostsView
 from quads_client.gui.views.admin_schedule import AdminScheduleView
 from quads_client.gui.views.available import AvailableView
+from quads_client.gui.views.moves import MoveProgressView
 from quads_client.gui.views.settings import SettingsView
 from quads_client.gui.views.preferences import PreferencesDialog
 
@@ -69,19 +70,31 @@ class QuadsClientApp(tk.Tk):
 
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="New Session", command=self._new_session, accelerator=f"{cmd_key}+N")
-        file_menu.add_command(label="Close Session", command=self._close_session, accelerator=f"{cmd_key}+W")
+        file_menu.add_command(
+            label="New Session", command=self._new_session, accelerator=f"{cmd_key}+N"
+        )
+        file_menu.add_command(
+            label="Close Session",
+            command=self._close_session,
+            accelerator=f"{cmd_key}+W",
+        )
         file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self._on_closing, accelerator=f"{cmd_key}+Q")
+        file_menu.add_command(
+            label="Exit", command=self._on_closing, accelerator=f"{cmd_key}+Q"
+        )
 
         edit_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Edit", menu=edit_menu)
         edit_menu.add_command(label="Preferences", command=self._show_preferences)
-        edit_menu.add_command(label="Toggle Theme", command=self._toggle_theme, accelerator=f"{cmd_key}+T")
+        edit_menu.add_command(
+            label="Toggle Theme", command=self._toggle_theme, accelerator=f"{cmd_key}+T"
+        )
 
         view_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="View", menu=view_menu)
-        view_menu.add_command(label="Refresh", command=self._refresh_view, accelerator=f"{cmd_key}+R")
+        view_menu.add_command(
+            label="Refresh", command=self._refresh_view, accelerator=f"{cmd_key}+R"
+        )
         view_menu.add_command(label="Toggle Sidebar", command=self._toggle_sidebar)
 
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -91,7 +104,9 @@ class QuadsClientApp(tk.Tk):
         help_menu.add_command(label="About", command=self._show_about)
         help_menu.add_command(label="Documentation", command=self._open_documentation)
         help_menu.add_command(label="Report Issue", command=self._report_issue)
-        help_menu.add_command(label="Keyboard Shortcuts", command=self._show_shortcuts, accelerator="F1")
+        help_menu.add_command(
+            label="Keyboard Shortcuts", command=self._show_shortcuts, accelerator="F1"
+        )
 
         self._bind_keyboard_shortcuts()
 
@@ -133,7 +148,9 @@ class QuadsClientApp(tk.Tk):
         )
         self.sidebar_title_label.pack(pady=10, padx=10)
 
-        ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
+        ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(
+            fill=tk.X, padx=5, pady=5
+        )
 
         # Store navigation items with admin flag and view name for tracking
         nav_items = [
@@ -142,8 +159,14 @@ class QuadsClientApp(tk.Tk):
             ("○ Available", self._show_available_view, False, "available"),
             ("⌂ My Hosts", self._show_my_hosts_view, False, "my_hosts"),
             ("☰ Assignments", self._show_assignments_view, False, "assignments"),
+            ("~ Move Progress", self._show_moves_view, False, "moves"),
             ("", None, True, ""),  # Separator (admin section)
-            ("★ Admin Schedule", self._show_admin_schedule_view, True, "admin_schedule"),
+            (
+                "★ Admin Schedule",
+                self._show_admin_schedule_view,
+                True,
+                "admin_schedule",
+            ),
             ("☁ Clouds", self._show_clouds_view, True, "clouds"),
             ("✦ Hosts", self._show_hosts_view, True, "hosts"),
             ("", None, False, ""),  # Separator
@@ -189,6 +212,7 @@ class QuadsClientApp(tk.Tk):
             "available": lambda: AvailableView(self.content_frame, self.shell),
             "my_hosts": lambda: MyHostsView(self.content_frame, self.shell),
             "assignments": lambda: AssignmentsView(self.content_frame, self.shell),
+            "moves": lambda: MoveProgressView(self.content_frame, self.shell),
             "admin_schedule": lambda: AdminScheduleView(self.content_frame, self.shell),
             "clouds": lambda: CloudsView(self.content_frame, self.shell),
             "hosts": lambda: HostsView(self.content_frame, self.shell),
@@ -233,10 +257,14 @@ class QuadsClientApp(tk.Tk):
         if has_servers and not self.shell.is_authenticated():
             # Show login button
             ttk.Label(
-                center_frame, text="You have servers configured.\n\nClick below to login:", font=("TkDefaultFont", 11)
+                center_frame,
+                text="You have servers configured.\n\nClick below to login:",
+                font=("TkDefaultFont", 11),
             ).pack(pady=(0, 20))
 
-            ttk.Button(center_frame, text="Login", command=self._auto_login_from_welcome).pack()
+            ttk.Button(
+                center_frame, text="Login", command=self._auto_login_from_welcome
+            ).pack()
 
         elif self.shell.is_authenticated():
             # Show logged in message
@@ -255,7 +283,8 @@ class QuadsClientApp(tk.Tk):
             # No servers configured - show setup message
             info_label = ttk.Label(
                 center_frame,
-                text="Select an item from the sidebar to get started.\n\n" "New to QUADS? Check Help → Documentation",
+                text="Select an item from the sidebar to get started.\n\n"
+                "New to QUADS? Check Help → Documentation",
             )
             info_label.pack(pady=10)
 
@@ -275,7 +304,12 @@ class QuadsClientApp(tk.Tk):
                 self._show_view("welcome")
                 self.update_role_visibility()
             else:
-                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
+                show_error_dialog(
+                    self,
+                    "Login Failed",
+                    f"Failed to connect to {target_server}",
+                    error or "",
+                )
         else:
             self._show_servers_view()
 
@@ -284,7 +318,9 @@ class QuadsClientApp(tk.Tk):
         self.status_bar = ttk.Frame(self)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-        ttk.Separator(self.status_bar, orient=tk.HORIZONTAL).pack(side=tk.TOP, fill=tk.X)
+        ttk.Separator(self.status_bar, orient=tk.HORIZONTAL).pack(
+            side=tk.TOP, fill=tk.X
+        )
 
         status_content = ttk.Frame(self.status_bar)
         status_content.pack(fill=tk.BOTH, expand=True, padx=5, pady=2)
@@ -295,7 +331,9 @@ class QuadsClientApp(tk.Tk):
         )
         self.connection_indicator.pack(side=tk.LEFT, padx=(0, 5))
 
-        self.connection_status_label = ttk.Label(status_content, text="Not connected", justify=tk.LEFT)
+        self.connection_status_label = ttk.Label(
+            status_content, text="Not connected", justify=tk.LEFT
+        )
         self.connection_status_label.pack(side=tk.LEFT)
 
         # Transient message label (right side, for errors/success/info)
@@ -345,7 +383,9 @@ class QuadsClientApp(tk.Tk):
         """Show preferences dialog"""
         old_font_size = self.preferences.get("font_size", "medium")
 
-        dialog = PreferencesDialog(self, self.shell.config, self.theme_manager, self.shell)
+        dialog = PreferencesDialog(
+            self, self.shell.config, self.theme_manager, self.shell
+        )
         self.wait_window(dialog)
 
         result = dialog.get_result()
@@ -358,12 +398,16 @@ class QuadsClientApp(tk.Tk):
             if new_font_size != old_font_size:
                 # Apply font changes
                 self._apply_font_preferences()
-                self.update_status(f"Preferences saved - font size changed to {new_font_size}")
+                self.update_status(
+                    f"Preferences saved - font size changed to {new_font_size}"
+                )
             else:
                 self.update_status("Preferences saved successfully")
 
             # Apply any immediate changes (like auto-refresh in My Hosts view)
-            if "my_hosts" in self.views and hasattr(self.views["my_hosts"], "apply_preferences"):
+            if "my_hosts" in self.views and hasattr(
+                self.views["my_hosts"], "apply_preferences"
+            ):
                 self.views["my_hosts"].apply_preferences(self.preferences)
 
     def _refresh_view(self):
@@ -421,6 +465,10 @@ class QuadsClientApp(tk.Tk):
         """Show assignments view"""
         self._show_view("assignments")
 
+    def _show_moves_view(self):
+        """Show move progress view"""
+        self._show_view("moves")
+
     def _show_admin_schedule_view(self):
         """Show admin schedule view"""
         if not self.shell.is_admin():
@@ -473,7 +521,9 @@ class QuadsClientApp(tk.Tk):
         )
         subtitle_label.pack(pady=10)
 
-        devs_label = ttk.Label(about_window, text="Core Developers:", font=("TkDefaultFont", 10, "bold"))
+        devs_label = ttk.Label(
+            about_window, text="Core Developers:", font=("TkDefaultFont", 10, "bold")
+        )
         devs_label.pack(pady=(20, 5))
 
         devs_frame = ttk.Frame(about_window)
@@ -494,12 +544,16 @@ class QuadsClientApp(tk.Tk):
         license_link_frame = ttk.Frame(about_window)
         license_link_frame.pack(pady=5)
 
-        ttk.Label(license_link_frame, text="Licensed under the", font=("TkDefaultFont", 8)).pack(side=tk.LEFT)
+        ttk.Label(
+            license_link_frame, text="Licensed under the", font=("TkDefaultFont", 8)
+        ).pack(side=tk.LEFT)
 
         license_button = ttk.Button(
             license_link_frame,
             text="GPLv3",
-            command=lambda: webbrowser.open("https://github.com/quadsproject/quads-client/blob/main/LICENSE"),
+            command=lambda: webbrowser.open(
+                "https://github.com/quadsproject/quads-client/blob/main/LICENSE"
+            ),
         )
         license_button.pack(side=tk.LEFT, padx=3)
 
@@ -510,7 +564,9 @@ class QuadsClientApp(tk.Tk):
         )
         website_button.pack(pady=10)
 
-        close_button = ttk.Button(about_window, text="Close", command=about_window.destroy)
+        close_button = ttk.Button(
+            about_window, text="Close", command=about_window.destroy
+        )
         close_button.pack(pady=15)
 
         about_window.transient(self)
@@ -561,13 +617,17 @@ class QuadsClientApp(tk.Tk):
             row = ttk.Frame(frame)
             row.pack(fill=tk.X, pady=5)
 
-            key_label = ttk.Label(row, text=shortcut, font=("TkDefaultFont", 9, "bold"), width=12)
+            key_label = ttk.Label(
+                row, text=shortcut, font=("TkDefaultFont", 9, "bold"), width=12
+            )
             key_label.pack(side=tk.LEFT)
 
             desc_label = ttk.Label(row, text=description)
             desc_label.pack(side=tk.LEFT, padx=10)
 
-        close_button = ttk.Button(shortcuts_window, text="Close", command=shortcuts_window.destroy)
+        close_button = ttk.Button(
+            shortcuts_window, text="Close", command=shortcuts_window.destroy
+        )
         close_button.pack(pady=15)
 
         shortcuts_window.transient(self)
@@ -587,14 +647,18 @@ class QuadsClientApp(tk.Tk):
         is_connected = self.shell.is_authenticated() if self.shell else False
 
         if is_connected:
-            self.connection_indicator.config(foreground=self.theme_manager.get_color("success"))
+            self.connection_indicator.config(
+                foreground=self.theme_manager.get_color("success")
+            )
             server = ""
             username = ""
             if self.shell.connection:
                 server = getattr(self.shell.connection, "current_server", "")
                 username = getattr(self.shell.connection, "username", "")
             if server and username:
-                self.connection_status_label.config(text=f"Connected to {server} as {username}")
+                self.connection_status_label.config(
+                    text=f"Connected to {server} as {username}"
+                )
             elif server:
                 self.connection_status_label.config(text=f"Connected to {server}")
             else:
@@ -745,7 +809,9 @@ class QuadsClientApp(tk.Tk):
                 # macOS uses .icns format for better integration
                 if platform.system() == "Darwin":
                     try:
-                        icon_data = files("quads_client.gui.assets").joinpath("quads-client-gui.icns")
+                        icon_data = files("quads_client.gui.assets").joinpath(
+                            "quads-client-gui.icns"
+                        )
                         if hasattr(icon_data, "as_posix"):
                             self.iconbitmap(icon_data.as_posix())
                         else:
@@ -757,7 +823,9 @@ class QuadsClientApp(tk.Tk):
                         pass
 
                 # Linux/Windows: use PNG
-                icon_data = files("quads_client.gui.assets").joinpath("quads-client.png")
+                icon_data = files("quads_client.gui.assets").joinpath(
+                    "quads-client.png"
+                )
                 if hasattr(icon_data, "as_posix"):
                     icon_path = icon_data.as_posix()
                 else:
@@ -773,7 +841,10 @@ class QuadsClientApp(tk.Tk):
             if platform.system() == "Darwin":
                 icns_paths = [
                     Path(__file__).parent / "assets" / "quads-client-gui.icns",
-                    Path(__file__).parent.parent.parent.parent / "desktop" / "icons" / "quads-client-gui.icns",
+                    Path(__file__).parent.parent.parent.parent
+                    / "desktop"
+                    / "icons"
+                    / "quads-client-gui.icns",
                 ]
                 for icon_path in icns_paths:
                     if icon_path.exists():
@@ -783,7 +854,10 @@ class QuadsClientApp(tk.Tk):
             # Linux/Windows fallback
             icon_paths = [
                 Path(__file__).parent / "assets" / "quads-client.png",
-                Path(__file__).parent.parent.parent.parent / "desktop" / "icons" / "quads-client.png",
+                Path(__file__).parent.parent.parent.parent
+                / "desktop"
+                / "icons"
+                / "quads-client.png",
                 Path("/usr/share/icons/hicolor/128x128/apps/quads-client.png"),
             ]
 
@@ -825,10 +899,14 @@ class QuadsClientApp(tk.Tk):
         # Update sidebar button styles to match new font size
         style = ttk.Style()
         style.configure("Sidebar.TButton", font=("TkDefaultFont", sizes["default"]))
-        style.configure("Sidebar.Active.TButton", font=("TkDefaultFont", sizes["default"]))
+        style.configure(
+            "Sidebar.Active.TButton", font=("TkDefaultFont", sizes["default"])
+        )
 
         if hasattr(self, "sidebar_title_label"):
-            self.sidebar_title_label.configure(font=("TkDefaultFont", sizes["title"], "bold"))
+            self.sidebar_title_label.configure(
+                font=("TkDefaultFont", sizes["title"], "bold")
+            )
 
     def _auto_connect_on_startup(self):
         """Auto-connect to default server on startup if enabled"""
@@ -874,7 +952,9 @@ class QuadsClientApp(tk.Tk):
 
             self.shell.config.config_data["gui_preferences"]["window_geometry"] = size
             if position:
-                self.shell.config.config_data["gui_preferences"]["window_position"] = position
+                self.shell.config.config_data["gui_preferences"][
+                    "window_position"
+                ] = position
 
             try:
                 self.shell.config.save_config()
@@ -905,7 +985,8 @@ class QuadsClientApp(tk.Tk):
 
             if session_count > 0:
                 if not messagebox.askyesno(
-                    "Confirm Exit", f"You have {session_count} active session(s). Are you sure you want to exit?"
+                    "Confirm Exit",
+                    f"You have {session_count} active session(s). Are you sure you want to exit?",
                 ):
                     return
 
