@@ -18,7 +18,7 @@ class MoveCommands:
 
         if hostname:
             try:
-                progress = self.shell.connection.api.get_move_progress(hostname)
+                progress = self.shell.connection.api.get_move_status(hostname)
             except Exception:
                 progress = None
 
@@ -50,7 +50,7 @@ class MoveCommands:
             )
         else:
             try:
-                active = self.shell.connection.api.get_all_move_progress()
+                active = self.shell.connection.api.get_all_move_status()
             except Exception:
                 active = []
 

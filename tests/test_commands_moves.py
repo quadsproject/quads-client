@@ -33,7 +33,7 @@ def test_move_status_not_authenticated(move_commands, mock_shell):
 
 
 def test_move_status_all_no_moves(move_commands, mock_shell):
-    mock_shell.connection.api.get_all_move_progress.return_value = []
+    mock_shell.connection.api.get_all_move_status.return_value = []
 
     move_commands.cmd_move_status("")
 
@@ -41,7 +41,7 @@ def test_move_status_all_no_moves(move_commands, mock_shell):
 
 
 def test_move_status_all_with_moves(move_commands, mock_shell):
-    mock_shell.connection.api.get_all_move_progress.return_value = [
+    mock_shell.connection.api.get_all_move_status.return_value = [
         {
             "host": "host1.example.com",
             "source_cloud": "cloud01",
@@ -72,7 +72,7 @@ def test_move_status_all_with_moves(move_commands, mock_shell):
 
 
 def test_move_status_single_host(move_commands, mock_shell):
-    mock_shell.connection.api.get_move_progress.return_value = {
+    mock_shell.connection.api.get_move_status.return_value = {
         "host": "host1.example.com",
         "source_cloud": "cloud01",
         "target_cloud": "cloud02",
@@ -90,7 +90,7 @@ def test_move_status_single_host(move_commands, mock_shell):
 
 
 def test_move_status_single_host_not_found(move_commands, mock_shell):
-    mock_shell.connection.api.get_move_progress.return_value = None
+    mock_shell.connection.api.get_move_status.return_value = None
 
     move_commands.cmd_move_status("nonexistent.example.com")
 
@@ -98,7 +98,7 @@ def test_move_status_single_host_not_found(move_commands, mock_shell):
 
 
 def test_move_status_api_error(move_commands, mock_shell):
-    mock_shell.connection.api.get_all_move_progress.side_effect = Exception("Connection refused")
+    mock_shell.connection.api.get_all_move_status.side_effect = Exception("Connection refused")
 
     move_commands.cmd_move_status("")
 
@@ -108,17 +108,17 @@ def test_move_status_api_error(move_commands, mock_shell):
 class TestProgressTracker:
     def test_get_move_status(self):
         api = MagicMock()
-        api.get_move_progress.return_value = {"status": "provisioning", "host": "host1"}
+        api.get_move_status.return_value = {"status": "provisioning", "host": "host1"}
         tracker = ProgressTracker(api)
 
         result = tracker.get_move_status("host1")
 
         assert result["status"] == "provisioning"
-        api.get_move_progress.assert_called_once_with("host1")
+        api.get_move_status.assert_called_once_with("host1")
 
     def test_get_move_status_not_found(self):
         api = MagicMock()
-        api.get_move_progress.side_effect = Exception("404")
+        api.get_move_status.side_effect = Exception("404")
         tracker = ProgressTracker(api)
 
         result = tracker.get_move_status("host1")
@@ -127,7 +127,7 @@ class TestProgressTracker:
 
     def test_get_all_active_moves(self):
         api = MagicMock()
-        api.get_all_move_progress.return_value = [{"host": "host1"}, {"host": "host2"}]
+        api.get_all_move_status.return_value = [{"host": "host1"}, {"host": "host2"}]
         tracker = ProgressTracker(api)
 
         result = tracker.get_all_active_moves()
@@ -136,7 +136,7 @@ class TestProgressTracker:
 
     def test_get_all_active_moves_error(self):
         api = MagicMock()
-        api.get_all_move_progress.side_effect = Exception("error")
+        api.get_all_move_status.side_effect = Exception("error")
         tracker = ProgressTracker(api)
 
         result = tracker.get_all_active_moves()
@@ -145,7 +145,7 @@ class TestProgressTracker:
 
     def test_format_stage_progress_pending(self):
         api = MagicMock()
-        api.get_move_progress.return_value = {"status": "pending"}
+        api.get_move_status.return_value = {"status": "pending"}
         tracker = ProgressTracker(api)
 
         result = tracker.format_stage_progress("host1")
@@ -154,7 +154,7 @@ class TestProgressTracker:
 
     def test_format_stage_progress_failed(self):
         api = MagicMock()
-        api.get_move_progress.return_value = {"status": "failed"}
+        api.get_move_status.return_value = {"status": "failed"}
         tracker = ProgressTracker(api)
 
         result = tracker.format_stage_progress("host1")
@@ -163,7 +163,7 @@ class TestProgressTracker:
 
     def test_format_stage_progress_completed(self):
         api = MagicMock()
-        api.get_move_progress.return_value = {"status": "completed"}
+        api.get_move_status.return_value = {"status": "completed"}
         tracker = ProgressTracker(api)
 
         result = tracker.format_stage_progress("host1")
@@ -172,7 +172,7 @@ class TestProgressTracker:
 
     def test_format_stage_progress_no_data(self):
         api = MagicMock()
-        api.get_move_progress.side_effect = Exception("404")
+        api.get_move_status.side_effect = Exception("404")
         tracker = ProgressTracker(api)
 
         result = tracker.format_stage_progress("host1")

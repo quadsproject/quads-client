@@ -65,7 +65,7 @@ class MoveProgressView(BaseAdminView):
         self._loading = True
 
         def _fetch():
-            return self.shell.connection.api.get_all_move_progress()
+            return self.shell.connection.api.get_all_move_status()
 
         def _on_loaded(moves):
             self._loading = False

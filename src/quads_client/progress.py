@@ -43,13 +43,13 @@ class ProgressTracker:
 
     def get_move_status(self, host: str) -> Optional[dict[str, Any]]:
         try:
-            return self._api.get_move_progress(host)
+            return self._api.get_move_status(host)
         except Exception:
             return None
 
     def get_all_active_moves(self) -> list:
         try:
-            return self._api.get_all_move_progress()
+            return self._api.get_all_move_status()
         except Exception:
             return []
 
