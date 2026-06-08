@@ -98,7 +98,16 @@ class MoveProgressView(BaseAdminView):
             self._loading = False
             if not self.winfo_exists():
                 return
-            self.update_status(f"Error: {exc}")
+            error_msg = str(exc).lower()
+            if "404" in str(exc) or "not found" in error_msg:
+                self.update_status("Move tracking is not available on this server")
+                self._auto_refresh = False
+                self._auto_var.set(False)
+                if self._refresh_job:
+                    self.after_cancel(self._refresh_job)
+                    self._refresh_job = None
+            else:
+                self.update_status(f"Error: {exc}")
 
         self._run_in_thread(_fetch, _on_loaded, _on_error)
 
