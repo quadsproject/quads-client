@@ -23,7 +23,7 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 - **User Registration**: Non-admin users can register accounts and manage their own assignments
 - **Command History**: SQLite-based persistent command history per server
 - **Unified Schedule Command**: Combines cloud assignment creation and host scheduling in a single operation for simpler workflows
-- **Progress Tracking**: Real-time provisioning progress monitoring
+- **Move Progress Tracking**: Monitor host moves through the 12-stage provisioning pipeline via the `move_status` TUI command and GUI Move Progress view
 - **Connection Management**: Easy switching between QUADS server instances
 - **Thin Wrapper Design**: Server-side authorization via QUADS API
 
@@ -50,6 +50,7 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
   - [Host Management (Admin)](#host-management-admin)
   - [Schedule Management (Admin)](#schedule-management-admin)
   - [Available Hosts](#available-hosts)
+  - [Move Progress](#move-progress)
   - [Other Commands](#other-commands)
 - [Authorization](#authorization)
   - [Server Roles](#server-roles)
@@ -237,6 +238,7 @@ quads-client-gui
 - Server/connection management with session switching
 - Self-scheduling interface for normal users
 - My Hosts view with status monitoring
+- Move Progress view with auto-refresh for active moves
 - Dark/light theme toggle
 - Cross-platform (Linux, macOS, Windows)
 
@@ -975,6 +977,27 @@ ls_available disk-type nvme disk-count 2 interfaces 4
 ls_available start 2026-06-01 end 2026-06-15 model r650
 ```
 
+### Move Progress
+
+```
+move_status                       - Show all active host moves with progress
+move_status <hostname>            - Show detailed move progress for a specific host
+```
+
+After scheduling hosts, use `move_status` to track each host through the 12-stage provisioning pipeline (switch config, IPMI, hardware prep, provisioning, validation, etc.).
+
+**Examples:**
+```bash
+# View all active moves (table: host, from, to, progress, status, message)
+move_status
+
+# Check a specific host
+move_status host01.example.com
+```
+
+> [!TIP]
+> The GUI "Move Progress" view provides the same data with an auto-refresh toggle for hands-free monitoring.
+
 ### Other Commands
 
 ```
@@ -1058,6 +1081,7 @@ quads-client/
 │   │   │   ├── schedule.py   - Self-scheduling view (SSM users)
 │   │   │   ├── my_hosts.py   - My hosts view
 │   │   │   ├── assignments.py- Assignments view
+│   │   │   ├── moves.py     - Move progress view
 │   │   │   ├── settings.py   - Settings/preferences view
 │   │   │   └── about.py      - About dialog
 │   │   └── widgets/          - Reusable custom widgets
@@ -1070,6 +1094,7 @@ quads-client/
 │       ├── cloud.py          - Cloud management
 │       ├── connection.py     - Connection commands
 │       ├── host.py           - Host management (admin)
+│       ├── moves.py          - Move progress commands
 │       ├── schedule.py       - Schedule management (admin)
 │       ├── server.py         - Server configuration (programmatic methods)
 │       ├── session.py        - Session management

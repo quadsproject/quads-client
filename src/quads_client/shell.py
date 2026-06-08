@@ -4,6 +4,7 @@ from quads_client.commands.available import AvailableCommands
 from quads_client.commands.cloud import CloudCommands
 from quads_client.commands.connection import ConnectionCommands
 from quads_client.commands.host import HostCommands
+from quads_client.commands.moves import MoveCommands
 from quads_client.commands.schedule import ScheduleCommands
 from quads_client.commands.server import ServerCommands
 from quads_client.commands.session import SessionCommands
@@ -74,6 +75,7 @@ class QuadsClientShell(cmd2.Cmd):
         self.host_commands = HostCommands(self)
         self.schedule_commands = ScheduleCommands(self)
         self.available_commands = AvailableCommands(self)
+        self.move_commands = MoveCommands(self)
         self.server_commands = ServerCommands(self)
         self.session_commands = SessionCommands(self)
 
@@ -206,6 +208,7 @@ class QuadsClientShell(cmd2.Cmd):
             "cloud_list",
             "ls_available",
             "os_list",
+            "move_status",
         ]
 
         # Get current authentication state
@@ -345,7 +348,16 @@ class QuadsClientShell(cmd2.Cmd):
             return []
 
         parts = line.split()
-        keywords = ["description", "nowipe", "vlan", "qinq", "os", "model", "ram", "host-list"]
+        keywords = [
+            "description",
+            "nowipe",
+            "vlan",
+            "qinq",
+            "os",
+            "model",
+            "ram",
+            "host-list",
+        ]
 
         # For admin mode, try to get cloud names
         if self.connection.is_admin:
@@ -504,7 +516,16 @@ class QuadsClientShell(cmd2.Cmd):
                 return cloud_names
 
             # Subsequent args: attributes
-            keywords = ["cloud-owner", "description", "cloud-ticket", "cc-users", "vlan", "qinq", "wipe", "nowipe"]
+            keywords = [
+                "cloud-owner",
+                "description",
+                "cloud-ticket",
+                "cc-users",
+                "vlan",
+                "qinq",
+                "wipe",
+                "nowipe",
+            ]
             if text:
                 return [k for k in keywords if k.startswith(text)]
             return keywords
@@ -758,6 +779,10 @@ class QuadsClientShell(cmd2.Cmd):
     def do_ls_available(self, args):
         """List available hosts"""
         self.available_commands.cmd_ls_available(args)
+
+    def do_move_status(self, args):
+        """Show move/rebuild progress. Usage: move_status [hostname]"""
+        self.move_commands.cmd_move_status(args)
 
     def do_servers(self, args):
         """List all configured servers"""

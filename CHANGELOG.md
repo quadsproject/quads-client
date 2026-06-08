@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.7.0 (Unreleased)
+
+### Features
+
+- Add `move_status` TUI command for tracking host moves through the 12-stage provisioning pipeline
+- Add Move Progress GUI view with auto-refresh toggle
+- Refactor `ProgressTracker` to server-backed implementation using the QUADS move progress API
+
 ## v0.6.0 (2026-05-25)
 
 ### Bug Fixes

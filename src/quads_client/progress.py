@@ -1,50 +1,61 @@
-from datetime import datetime
 from typing import Any, Optional
 
 
+# Keep in sync with MoveStatus enum / Schedule.PROGRESSIVE_STAGES in quads/server/models.py
+MOVE_STAGES = [
+    "pending",
+    "switch_config",
+    "ipmi_config",
+    "hardware_prep",
+    "power_on",
+    "provisioning",
+    "cleanup",
+    "reboot",
+    "post_install",
+    "foreman_rbac",
+    "validation",
+    "released",
+]
+TOTAL_STAGES = len(MOVE_STAGES)
+
+
+def stage_of(status):
+    if status in ("completed", "failed"):
+        return TOTAL_STAGES
+    try:
+        return MOVE_STAGES.index(status) + 1
+    except ValueError:
+        return 0
+
+
+def format_progress_str(status):
+    stage = stage_of(status)
+    if status == "failed":
+        return f"FAILED @ {stage}/{TOTAL_STAGES}"
+    if status == "completed":
+        return f"{TOTAL_STAGES}/{TOTAL_STAGES}"
+    return f"{stage}/{TOTAL_STAGES}"
+
+
 class ProgressTracker:
-    def __init__(self):
-        self._active_moves: dict[str, dict[str, Any]] = {}
-
-    def add_move(self, host: str, cloud: str, start_time: Optional[datetime] = None):
-        if start_time is None:
-            start_time = datetime.now()
-        self._active_moves[host] = {
-            "cloud": cloud,
-            "start_time": start_time,
-            "status": "pending",
-            "progress": 0,
-        }
-
-    def update_progress(self, host: str, progress: int, status: str = "in_progress"):
-        if host in self._active_moves:
-            self._active_moves[host]["progress"] = min(100, max(0, progress))
-            self._active_moves[host]["status"] = status
-
-    def complete_move(self, host: str, success: bool = True):
-        if host in self._active_moves:
-            self._active_moves[host]["status"] = "completed" if success else "failed"
-            self._active_moves[host]["progress"] = 100 if success else self._active_moves[host]["progress"]
-
-    def remove_move(self, host: str):
-        self._active_moves.pop(host, None)
+    def __init__(self, api):
+        self._api = api
 
     def get_move_status(self, host: str) -> Optional[dict[str, Any]]:
-        return self._active_moves.get(host)
+        try:
+            return self._api.get_move_status(host)
+        except Exception:
+            return None
 
-    def get_all_active_moves(self) -> dict[str, dict[str, Any]]:
-        return self._active_moves.copy()
+    def get_all_active_moves(self) -> list:
+        try:
+            return self._api.get_all_move_status()
+        except Exception:
+            return []
 
-    def clear_completed(self):
-        self._active_moves = {
-            host: info for host, info in self._active_moves.items() if info["status"] not in ("completed", "failed")
-        }
-
-    def format_progress_bar(self, host: str, width: int = 40) -> str:
-        if host not in self._active_moves:
+    def format_stage_progress(self, host: str) -> str:
+        data = self.get_move_status(host)
+        if not data:
             return ""
-
-        progress = self._active_moves[host]["progress"]
-        filled = int(width * progress / 100)
-        bar = "#" * filled + "-" * (width - filled)
-        return f"[{bar}] {progress}%"
+        status = data.get("status", "pending")
+        return format_progress_str(status)

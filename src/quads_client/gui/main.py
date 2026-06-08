@@ -17,6 +17,7 @@ from quads_client.gui.views.clouds import CloudsView
 from quads_client.gui.views.hosts import HostsView
 from quads_client.gui.views.admin_schedule import AdminScheduleView
 from quads_client.gui.views.available import AvailableView
+from quads_client.gui.views.moves import MoveProgressView
 from quads_client.gui.views.settings import SettingsView
 from quads_client.gui.views.preferences import PreferencesDialog
 
@@ -70,7 +71,11 @@ class QuadsClientApp(tk.Tk):
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="New Session", command=self._new_session, accelerator=f"{cmd_key}+N")
-        file_menu.add_command(label="Close Session", command=self._close_session, accelerator=f"{cmd_key}+W")
+        file_menu.add_command(
+            label="Close Session",
+            command=self._close_session,
+            accelerator=f"{cmd_key}+W",
+        )
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self._on_closing, accelerator=f"{cmd_key}+Q")
 
@@ -142,8 +147,14 @@ class QuadsClientApp(tk.Tk):
             ("○ Available", self._show_available_view, False, "available"),
             ("⌂ My Hosts", self._show_my_hosts_view, False, "my_hosts"),
             ("☰ Assignments", self._show_assignments_view, False, "assignments"),
+            ("~ Move Progress", self._show_moves_view, False, "moves"),
             ("", None, True, ""),  # Separator (admin section)
-            ("★ Admin Schedule", self._show_admin_schedule_view, True, "admin_schedule"),
+            (
+                "★ Admin Schedule",
+                self._show_admin_schedule_view,
+                True,
+                "admin_schedule",
+            ),
             ("☁ Clouds", self._show_clouds_view, True, "clouds"),
             ("✦ Hosts", self._show_hosts_view, True, "hosts"),
             ("", None, False, ""),  # Separator
@@ -189,6 +200,7 @@ class QuadsClientApp(tk.Tk):
             "available": lambda: AvailableView(self.content_frame, self.shell),
             "my_hosts": lambda: MyHostsView(self.content_frame, self.shell),
             "assignments": lambda: AssignmentsView(self.content_frame, self.shell),
+            "moves": lambda: MoveProgressView(self.content_frame, self.shell),
             "admin_schedule": lambda: AdminScheduleView(self.content_frame, self.shell),
             "clouds": lambda: CloudsView(self.content_frame, self.shell),
             "hosts": lambda: HostsView(self.content_frame, self.shell),
@@ -233,7 +245,9 @@ class QuadsClientApp(tk.Tk):
         if has_servers and not self.shell.is_authenticated():
             # Show login button
             ttk.Label(
-                center_frame, text="You have servers configured.\n\nClick below to login:", font=("TkDefaultFont", 11)
+                center_frame,
+                text="You have servers configured.\n\nClick below to login:",
+                font=("TkDefaultFont", 11),
             ).pack(pady=(0, 20))
 
             ttk.Button(center_frame, text="Login", command=self._auto_login_from_welcome).pack()
@@ -275,7 +289,12 @@ class QuadsClientApp(tk.Tk):
                 self._show_view("welcome")
                 self.update_role_visibility()
             else:
-                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
+                show_error_dialog(
+                    self,
+                    "Login Failed",
+                    f"Failed to connect to {target_server}",
+                    error or "",
+                )
         else:
             self._show_servers_view()
 
@@ -420,6 +439,10 @@ class QuadsClientApp(tk.Tk):
     def _show_assignments_view(self):
         """Show assignments view"""
         self._show_view("assignments")
+
+    def _show_moves_view(self):
+        """Show move progress view"""
+        self._show_view("moves")
 
     def _show_admin_schedule_view(self):
         """Show admin schedule view"""
@@ -905,7 +928,8 @@ class QuadsClientApp(tk.Tk):
 
             if session_count > 0:
                 if not messagebox.askyesno(
-                    "Confirm Exit", f"You have {session_count} active session(s). Are you sure you want to exit?"
+                    "Confirm Exit",
+                    f"You have {session_count} active session(s). Are you sure you want to exit?",
                 ):
                     return
 
