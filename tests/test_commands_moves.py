@@ -102,7 +102,23 @@ def test_move_status_api_error(move_commands, mock_shell):
 
     move_commands.cmd_move_status("")
 
-    mock_shell.rich_console.print_info.assert_called_once_with("No active moves")
+    mock_shell.perror.assert_any_call("Connection failed: Connection refused")
+
+
+def test_move_status_not_found_all(move_commands, mock_shell):
+    mock_shell.connection.api.get_all_move_status.side_effect = Exception("Resource not found")
+
+    move_commands.cmd_move_status("")
+
+    mock_shell.rich_console.print_info.assert_called_once_with("Move tracking is not available on this server")
+
+
+def test_move_status_not_found_single(move_commands, mock_shell):
+    mock_shell.connection.api.get_move_status.side_effect = Exception("404 Resource not found")
+
+    move_commands.cmd_move_status("host1.example.com")
+
+    mock_shell.rich_console.print_info.assert_called_once_with("Move tracking is not available on this server")
 
 
 class TestProgressTracker:
