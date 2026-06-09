@@ -121,6 +121,92 @@ def test_move_status_not_found_single(move_commands, mock_shell):
     mock_shell.rich_console.print_info.assert_called_once_with("Move tracking is not available on this server")
 
 
+class TestActivity:
+    def test_activity_no_moves_no_pending(self, move_commands, mock_shell):
+        mock_shell.connection.api.get_all_move_status.return_value = []
+        mock_shell.connection.api.get_moves.return_value = []
+
+        move_commands.cmd_activity("")
+
+        mock_shell.rich_console.print_info.assert_called_with("No active or scheduled operations")
+
+    def test_activity_no_moves_with_pending(self, move_commands, mock_shell):
+        mock_shell.connection.api.get_all_move_status.return_value = []
+        mock_shell.connection.api.get_moves.return_value = [
+            {"host": "host1.example.com", "current": "cloud01", "new": "cloud02"},
+        ]
+
+        move_commands.cmd_activity("")
+
+        mock_shell.rich_console.print_section.assert_called_once()
+        section_arg = mock_shell.rich_console.print_section.call_args[0][0]
+        assert "Scheduled Operations" in section_arg
+        assert "1 move(s)" in section_arg
+
+    def test_activity_grouped_by_cloud(self, move_commands, mock_shell):
+        mock_shell.connection.api.get_all_move_status.return_value = [
+            {
+                "host": "host1.example.com",
+                "source_cloud": "cloud01",
+                "target_cloud": "cloud02",
+                "status": "provisioning",
+                "message": "Provisioner ready",
+            },
+            {
+                "host": "host2.example.com",
+                "source_cloud": "cloud01",
+                "target_cloud": "cloud03",
+                "status": "hardware_prep",
+                "message": "Hardware prepared",
+            },
+            {
+                "host": "host3.example.com",
+                "source_cloud": "cloud01",
+                "target_cloud": "cloud02",
+                "status": "failed",
+                "message": "",
+            },
+        ]
+
+        move_commands.cmd_activity("")
+
+        mock_shell.rich_console.print_section.assert_called_once()
+        section_arg = mock_shell.rich_console.print_section.call_args[0][0]
+        assert "3 move(s)" in section_arg
+        assert "2 cloud(s)" in section_arg
+        assert mock_shell.poutput.call_count >= 5
+
+    def test_activity_not_authenticated(self, move_commands, mock_shell):
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = False
+
+        move_commands.cmd_activity("")
+
+        mock_shell.perror.assert_called_once_with("Not authenticated. Use 'login' command first.")
+
+    def test_activity_api_error(self, move_commands, mock_shell):
+        mock_shell.connection.api.get_all_move_status.side_effect = Exception("Connection refused")
+
+        move_commands.cmd_activity("")
+
+        mock_shell.perror.assert_any_call("Connection failed: Connection refused")
+
+    def test_activity_not_available(self, move_commands, mock_shell):
+        mock_shell.connection.api.get_all_move_status.side_effect = Exception("404 Not Found")
+
+        move_commands.cmd_activity("")
+
+        mock_shell.rich_console.print_info.assert_called_with("Move tracking is not available on this server")
+
+    def test_activity_pending_api_error(self, move_commands, mock_shell):
+        mock_shell.connection.api.get_all_move_status.return_value = []
+        mock_shell.connection.api.get_moves.side_effect = Exception("Connection refused")
+
+        move_commands.cmd_activity("")
+
+        mock_shell.rich_console.print_info.assert_called_with("No active or scheduled operations")
+
+
 class TestProgressTracker:
     def test_get_move_status(self):
         api = MagicMock()

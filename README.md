@@ -23,7 +23,7 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 - **User Registration**: Non-admin users can register accounts and manage their own assignments
 - **Command History**: SQLite-based persistent command history per server
 - **Unified Schedule Command**: Combines cloud assignment creation and host scheduling in a single operation for simpler workflows
-- **Move Progress Tracking**: Monitor host moves through the 12-stage provisioning pipeline via the `move_status` TUI command and GUI Move Progress view
+- **Move Progress Tracking**: Monitor host moves through the 12-stage provisioning pipeline via `move_status`, live `track` with Rich auto-refresh, `activity` cloud-grouped summaries, and GUI Move Progress view
 - **Connection Management**: Easy switching between QUADS server instances
 - **Thin Wrapper Design**: Server-side authorization via QUADS API
 
@@ -35,12 +35,16 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
   - [From RPM](#from-rpm)
   - [From Source](#from-source)
 - [Configuration](#configuration)
+  - [Quick Setup (Recommended)](#quick-setup-recommended)
+  - [Manual Configuration (Advanced)](#manual-configuration-advanced)
+  - [SSL/TLS Security Indicator](#ssltls-security-indicator)
 - [How to Self-Schedule](#how-to-self-schedule)
 - [Usage](#usage)
   - [GUI Mode](#gui-mode)
   - [Interactive Mode](#interactive-mode)
   - [One-Shot Commands](#one-shot-commands)
 - [Commands](#commands)
+  - [Tab Completion](#tab-completion)
   - [Connection Management](#connection-management)
   - [Multi-Server Session Management](#multi-server-session-management)
   - [Managing Multiple Users on Same Server](#managing-multiple-users-on-same-server)
@@ -68,6 +72,7 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 - [Contributing](#contributing)
 - [Screenshots](#screenshots)
   - [TUI CLI](#tui-cli)
+  - [Active Provisioning Tracking](#active-provisioning-tracking)
   - [GUI](#gui)
 - [Links](#links)
 
@@ -982,6 +987,10 @@ ls_available start 2026-06-01 end 2026-06-15 model r650
 ```
 move_status                       - Show all active host moves with progress
 move_status <hostname>            - Show detailed move progress for a specific host
+track                             - Live-track all active moves (auto-refreshing display)
+track <hostname>                  - Live-track a specific host
+track <cloudname>                 - Live-track moves for a specific cloud
+activity                          - Show active moves grouped by target cloud
 ```
 
 After scheduling hosts, use `move_status` to track each host through the 12-stage provisioning pipeline (switch config, IPMI, hardware prep, provisioning, validation, etc.).
@@ -993,10 +1002,22 @@ move_status
 
 # Check a specific host
 move_status host01.example.com
+
+# Live-track all moves (auto-refreshes every 5s, Ctrl+C to stop)
+track
+
+# Live-track a single host until completed or failed
+track host01.example.com
+
+# Live-track moves for a specific cloud
+track cloud03
+
+# Show cloud-grouped activity summary
+activity
 ```
 
 > [!TIP]
-> The GUI "Move Progress" view provides the same data with an auto-refresh toggle for hands-free monitoring.
+> The prompt shows a `⚡` indicator when moves are active. The GUI "Move Progress" view provides the same data with an auto-refresh toggle for hands-free monitoring.
 
 ### Other Commands
 
@@ -1081,9 +1102,8 @@ quads-client/
 │   │   │   ├── schedule.py   - Self-scheduling view (SSM users)
 │   │   │   ├── my_hosts.py   - My hosts view
 │   │   │   ├── assignments.py- Assignments view
-│   │   │   ├── moves.py     - Move progress view
-│   │   │   ├── settings.py   - Settings/preferences view
-│   │   │   └── about.py      - About dialog
+│   │   │   ├── moves.py      - Move progress view
+│   │   │   └── settings.py   - Settings/preferences view
 │   │   └── widgets/          - Reusable custom widgets
 │   │       ├── base.py       - Base widget classes
 │   │       ├── dialogs.py    - Dialog helpers
@@ -1094,7 +1114,8 @@ quads-client/
 │       ├── cloud.py          - Cloud management
 │       ├── connection.py     - Connection commands
 │       ├── host.py           - Host management (admin)
-│       ├── moves.py          - Move progress commands
+│       ├── moves.py          - Move progress and activity commands
+│       ├── track.py          - Live progress tracking (Rich Live)
 │       ├── schedule.py       - Schedule management (admin)
 │       ├── server.py         - Server configuration (programmatic methods)
 │       ├── session.py        - Session management
@@ -1102,7 +1123,7 @@ quads-client/
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
-├── tests/                    - pytest test suite (691 tests, 74.81% coverage)
+├── tests/                    - pytest test suite (754 tests)
 │   ├── test_commands_programmatic.py - Tests for GUI-supporting programmatic methods
 │   └── ...                   - Other test files
 ├── rpm/
@@ -1211,6 +1232,26 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to th
 
 <p align="left">
   <img src="images/quads-client-one-shot-ssm.png" alt="TUI CLI one-shot self-scheduling" width="600">
+</p>
+
+### Active Provisioning Tracking
+
+**Live move tracking with Rich auto-refresh**
+
+<p align="left">
+  <img src="images/track1.png" alt="Live move tracking" width="600">
+</p>
+
+**Scheduled moves awaiting next move cycle**
+
+<p align="left">
+  <img src="images/track2.png" alt="Scheduled moves awaiting move cycle" width="600">
+</p>
+
+**Activity summary grouped by cloud**
+
+<p align="left">
+  <img src="images/track3.png" alt="Activity summary grouped by cloud" width="600">
 </p>
 
 ### GUI

@@ -1,3 +1,5 @@
+import time
+
 import cmd2
 
 from quads_client.commands.available import AvailableCommands
@@ -8,6 +10,7 @@ from quads_client.commands.moves import MoveCommands
 from quads_client.commands.schedule import ScheduleCommands
 from quads_client.commands.server import ServerCommands
 from quads_client.commands.session import SessionCommands
+from quads_client.commands.track import TrackCommands
 from quads_client.commands.user import UserCommands
 from quads_client.commands.version import VersionCommands
 from quads_client.config import ConfigError, QuadsClientConfig
@@ -68,6 +71,9 @@ class QuadsClientShell(cmd2.Cmd):
             if not has_servers:
                 self._print_onboarding_message()
 
+        self._last_activity_check = 0
+        self._cached_activity_indicator = ""
+
         self.connection_commands = ConnectionCommands(self)
         self.version_commands = VersionCommands(self)
         self.cloud_commands = CloudCommands(self)
@@ -76,6 +82,7 @@ class QuadsClientShell(cmd2.Cmd):
         self.schedule_commands = ScheduleCommands(self)
         self.available_commands = AvailableCommands(self)
         self.move_commands = MoveCommands(self)
+        self.track_commands = TrackCommands(self)
         self.server_commands = ServerCommands(self)
         self.session_commands = SessionCommands(self)
 
@@ -98,6 +105,27 @@ class QuadsClientShell(cmd2.Cmd):
             readline.parse_and_bind('"\\C-a\\C-a": "session_switch\\n"')
         except (ImportError, OSError):
             pass
+
+    def postcmd(self, stop, line):
+        self._update_prompt()
+        return stop
+
+    def _get_activity_indicator(self):
+        if not self.connection or not self.connection.is_authenticated:
+            return ""
+        now = time.time()
+        if now - self._last_activity_check < 30:
+            return self._cached_activity_indicator
+        self._last_activity_check = now
+        try:
+            moves = self.connection.api.get_all_move_status()
+            if moves:
+                self._cached_activity_indicator = f"{_rl(chr(27) + '[1;33m')}⚡{_rl(chr(27) + '[0m')}"
+            else:
+                self._cached_activity_indicator = ""
+        except Exception:
+            self._cached_activity_indicator = ""
+        return self._cached_activity_indicator
 
     def do_exit(self, args):
         """Exit the application"""
@@ -139,7 +167,11 @@ class QuadsClientShell(cmd2.Cmd):
             if self.connection and self.connection.is_admin:
                 admin_badge = f" {_rl(chr(27) + '[1;31m')}[ADMIN]{_rl(chr(27) + '[0m')}"
 
-            self.prompt = f"{_rl(color)}{symbol} {session_info}({short_name}){admin_badge}{_rl(chr(27) + '[0m')} > "
+            activity = self._get_activity_indicator()
+
+            self.prompt = (
+                f"{_rl(color)}{symbol} {session_info}({short_name}){activity}{admin_badge}{_rl(chr(27) + '[0m')} > "
+            )
         else:
             self.prompt = f"{_rl(chr(27) + '[1;31m')}(disconnected){_rl(chr(27) + '[0m')} > "
 
@@ -209,6 +241,8 @@ class QuadsClientShell(cmd2.Cmd):
             "ls_available",
             "os_list",
             "move_status",
+            "track",
+            "activity",
         ]
 
         # Get current authentication state
@@ -540,10 +574,10 @@ class QuadsClientShell(cmd2.Cmd):
 
         parts = line.split()
         try:
-            keywords = ["--cloud", "--detail"]
+            keywords = ["cloud", "detail"]
 
-            # If looking for cloud name after --cloud
-            if len(parts) > 1 and parts[-2] == "--cloud":
+            # If looking for cloud name after cloud keyword
+            if len(parts) > 1 and parts[-2] == "cloud":
                 clouds = self.connection.api.get_clouds()
                 cloud_names = [c.get("name") for c in clouds]
                 if text:
@@ -629,18 +663,18 @@ class QuadsClientShell(cmd2.Cmd):
 
         parts = line.split()
         try:
-            keywords = ["--host", "--cloud"]
+            keywords = ["host", "cloud"]
 
-            # If looking for hostname after --host
-            if len(parts) > 1 and parts[-2] == "--host":
+            # If looking for hostname after host keyword
+            if len(parts) > 1 and parts[-2] == "host":
                 hosts = self.connection.api.get_hosts()
                 hostnames = [h.get("name") for h in hosts]
                 if text:
                     return [h for h in hostnames if h.startswith(text)]
                 return hostnames
 
-            # If looking for cloud name after --cloud
-            if len(parts) > 1 and parts[-2] == "--cloud":
+            # If looking for cloud name after cloud keyword
+            if len(parts) > 1 and parts[-2] == "cloud":
                 clouds = self.connection.api.get_clouds()
                 cloud_names = [c.get("name") for c in clouds]
                 if text:
@@ -662,10 +696,10 @@ class QuadsClientShell(cmd2.Cmd):
 
         parts = line.split()
         try:
-            keywords = ["--id", "--start", "--end"]
+            keywords = ["id", "start", "end"]
 
-            # If looking for schedule ID after --id
-            if len(parts) > 1 and parts[-2] == "--id":
+            # If looking for schedule ID after id keyword
+            if len(parts) > 1 and parts[-2] == "id":
                 schedules = self.connection.api.get_schedules({})
                 schedule_ids = [str(s.get("id")) for s in schedules]
                 if text:
@@ -695,7 +729,7 @@ class QuadsClientShell(cmd2.Cmd):
                 return servers
 
             # Subsequent args: attributes
-            keywords = ["--url", "--username", "--password", "--token", "--verify"]
+            keywords = ["url", "username", "password", "token", "verify"]
             if text:
                 return [k for k in keywords if k.startswith(text)]
             return keywords
@@ -783,6 +817,14 @@ class QuadsClientShell(cmd2.Cmd):
     def do_move_status(self, args):
         """Show move/rebuild progress. Usage: move_status [hostname]"""
         self.move_commands.cmd_move_status(args)
+
+    def do_track(self, args):
+        """Live-track move/rebuild progress. Usage: track [hostname|cloudname]"""
+        self.track_commands.cmd_track(args)
+
+    def do_activity(self, args):
+        """Show active moves grouped by cloud. Usage: activity"""
+        self.move_commands.cmd_activity(args)
 
     def do_servers(self, args):
         """List all configured servers"""
