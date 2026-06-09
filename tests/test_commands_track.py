@@ -60,18 +60,52 @@ def test_track_no_active_moves_no_pending(mock_shell):
     mock_shell.rich_console.print_info.assert_called_once_with("No active or scheduled moves")
 
 
-def test_track_no_active_moves_with_pending(mock_shell):
-    mock_shell.connection.api.get_all_move_status.return_value = []
-    mock_shell.connection.api.get_moves.return_value = [
-        {"host": "host1.example.com", "current": "cloud01", "new": "cloud02"},
+@patch("quads_client.commands.track.Live")
+@patch("quads_client.commands.track.time")
+def test_track_no_active_moves_with_pending_transitions(mock_time, mock_live_cls, mock_shell):
+    """Pending moves poll at 10s until active moves appear, then transition to live tracking"""
+    pending = [{"host": "host1.example.com", "current": "cloud01", "new": "cloud02"}]
+    active = [
+        {
+            "host": "host1.example.com",
+            "source_cloud": "cloud01",
+            "target_cloud": "cloud02",
+            "status": "pending",
+        }
     ]
+    mock_shell.connection.api.get_all_move_status.side_effect = [
+        [],
+        active,
+        active,
+        [],
+    ]
+    mock_shell.connection.api.get_moves.return_value = pending
+    mock_live_instance = MagicMock()
+    mock_live_cls.return_value.__enter__ = MagicMock(return_value=mock_live_instance)
+    mock_live_cls.return_value.__exit__ = MagicMock(return_value=False)
 
     cmd = TrackCommands(mock_shell)
     cmd.cmd_track("")
 
-    mock_shell.rich_console.console.print.assert_called_once()
-    table = mock_shell.rich_console.console.print.call_args[0][0]
-    assert table.title == "Scheduled Moves (awaiting next move cycle)"
+    assert mock_live_cls.call_count == 2
+
+
+@patch("quads_client.commands.track.Live")
+@patch("quads_client.commands.track.time")
+def test_track_pending_ctrl_c_exits(mock_time, mock_live_cls, mock_shell):
+    """Ctrl+C during pending polling exits cleanly"""
+    pending = [{"host": "host1.example.com", "current": "cloud01", "new": "cloud02"}]
+    mock_shell.connection.api.get_all_move_status.return_value = []
+    mock_shell.connection.api.get_moves.return_value = pending
+    mock_live_instance = MagicMock()
+    mock_live_cls.return_value.__enter__ = MagicMock(return_value=mock_live_instance)
+    mock_live_cls.return_value.__exit__ = MagicMock(return_value=False)
+    mock_time.sleep.side_effect = KeyboardInterrupt
+
+    cmd = TrackCommands(mock_shell)
+    cmd.cmd_track("")
+
+    mock_shell.rich_console.console.print.assert_called()
 
 
 def test_track_no_active_move_single(mock_shell):
@@ -84,16 +118,85 @@ def test_track_no_active_move_single(mock_shell):
     mock_shell.rich_console.print_info.assert_called_once_with("No active or scheduled moves for host1")
 
 
-def test_track_no_active_single_with_pending(mock_shell):
-    mock_shell.connection.api.get_move_status.return_value = None
-    mock_shell.connection.api.get_moves.return_value = [
-        {"host": "host1", "current": "cloud01", "new": "cloud02"},
+@patch("quads_client.commands.track.Live")
+@patch("quads_client.commands.track.time")
+def test_track_single_pending_transitions(mock_time, mock_live_cls, mock_shell):
+    """Single-host pending polling transitions to live tracking when move starts"""
+    pending = [{"host": "host1", "current": "cloud01", "new": "cloud02"}]
+    active = {
+        "host": "host1",
+        "source_cloud": "cloud01",
+        "target_cloud": "cloud02",
+        "status": "completed",
+    }
+    mock_shell.connection.api.get_move_status.side_effect = [
+        None,
+        active,
+        active,
     ]
+    mock_shell.connection.api.get_moves.return_value = pending
+    mock_live_instance = MagicMock()
+    mock_live_cls.return_value.__enter__ = MagicMock(return_value=mock_live_instance)
+    mock_live_cls.return_value.__exit__ = MagicMock(return_value=False)
 
     cmd = TrackCommands(mock_shell)
     cmd.cmd_track("host1")
 
-    mock_shell.rich_console.console.print.assert_called_once()
+    assert mock_live_cls.call_count == 2
+
+
+@patch("quads_client.commands.track.Live")
+@patch("quads_client.commands.track.time")
+def test_track_pending_all_disappears(mock_time, mock_live_cls, mock_shell):
+    """Pending moves disappear after one refresh cycle"""
+    pending = [{"host": "host1.example.com", "current": "cloud01", "new": "cloud02"}]
+    mock_shell.connection.api.get_all_move_status.return_value = []
+    mock_shell.connection.api.get_moves.side_effect = [pending, pending, []]
+    mock_live_instance = MagicMock()
+    mock_live_cls.return_value.__enter__ = MagicMock(return_value=mock_live_instance)
+    mock_live_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+    cmd = TrackCommands(mock_shell)
+    cmd.cmd_track("")
+
+    mock_live_cls.assert_called_once()
+    mock_live_instance.update.assert_called_once()
+
+
+@patch("quads_client.commands.track.Live")
+@patch("quads_client.commands.track.time")
+def test_track_pending_single_disappears(mock_time, mock_live_cls, mock_shell):
+    """Single-host pending move disappears after one refresh cycle"""
+    pending = [{"host": "host1", "current": "cloud01", "new": "cloud02"}]
+    mock_shell.connection.api.get_move_status.side_effect = [None, None, None]
+    mock_shell.connection.api.get_moves.side_effect = [pending, pending, []]
+    mock_live_instance = MagicMock()
+    mock_live_cls.return_value.__enter__ = MagicMock(return_value=mock_live_instance)
+    mock_live_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+    cmd = TrackCommands(mock_shell)
+    cmd.cmd_track("host1")
+
+    mock_live_cls.assert_called_once()
+    mock_live_instance.update.assert_called_once()
+
+
+@patch("quads_client.commands.track.Live")
+@patch("quads_client.commands.track.time")
+def test_track_pending_single_ctrl_c(mock_time, mock_live_cls, mock_shell):
+    """Ctrl+C during single-host pending polling exits cleanly"""
+    pending = [{"host": "host1", "current": "cloud01", "new": "cloud02"}]
+    mock_shell.connection.api.get_move_status.return_value = None
+    mock_shell.connection.api.get_moves.return_value = pending
+    mock_live_instance = MagicMock()
+    mock_live_cls.return_value.__enter__ = MagicMock(return_value=mock_live_instance)
+    mock_live_cls.return_value.__exit__ = MagicMock(return_value=False)
+    mock_time.sleep.side_effect = KeyboardInterrupt
+
+    cmd = TrackCommands(mock_shell)
+    cmd.cmd_track("host1")
+
+    mock_shell.rich_console.console.print.assert_called()
 
 
 def test_track_cloud_filter(mock_shell):
@@ -221,3 +324,15 @@ def test_build_single_table_with_error(mock_shell):
     }
     table = cmd._build_single_table(data)
     assert table.row_count >= 6
+
+
+def test_build_pending_table(mock_shell):
+    cmd = TrackCommands(mock_shell)
+    pending = [
+        {"host": "host1.example.com", "current": "cloud01", "new": "cloud02"},
+        {"host": "host2.example.com", "current": "cloud01", "new": "cloud03"},
+    ]
+    table = cmd._build_pending_table(pending)
+    assert table.title == "Scheduled Moves (awaiting next move cycle)"
+    assert "10s" in table.caption
+    assert table.row_count == 2
