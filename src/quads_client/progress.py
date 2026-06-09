@@ -31,7 +31,7 @@ def stage_of(status):
 def format_progress_str(status):
     stage = stage_of(status)
     if status == "failed":
-        return f"FAILED @ {stage}/{TOTAL_STAGES}"
+        return "FAILED"
     if status == "completed":
         return f"{TOTAL_STAGES}/{TOTAL_STAGES}"
     return f"{stage}/{TOTAL_STAGES}"

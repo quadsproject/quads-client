@@ -188,6 +188,7 @@ class MyHostsView(ttk.Frame):
     def _fetch_assignments(self):
         """Fetch assignments from the server via CLI command"""
         from quads_client.utils import get_username_short
+        from quads_client.progress import format_progress_str
 
         assignments_data = []
 
@@ -226,7 +227,20 @@ class MyHostsView(ttk.Frame):
                                 hostname = hostname.get("name", "")
 
                             status = "active" if is_validated else "provisioning"
-                            hosts.append({"name": str(hostname), "status": status, "progress": "N/A"})
+                            progress = "N/A"
+
+                            if status != "active":
+                                try:
+                                    move_data = self.shell.connection.api.get_move_status(str(hostname))
+                                    if move_data:
+                                        move_status = move_data.get("status", "pending")
+                                        progress = format_progress_str(move_status)
+                                        if move_status == "failed":
+                                            status = "failed"
+                                except Exception:
+                                    pass
+
+                            hosts.append({"name": str(hostname), "status": status, "progress": progress})
 
                     if schedules:
                         first = schedules[0] if isinstance(schedules[0], dict) else {}
@@ -345,6 +359,18 @@ class MyHostsView(ttk.Frame):
         """Get text progress bar"""
         if progress == "N/A":
             return "░" * 10 + " N/A"
+        if isinstance(progress, str) and "/" in progress:
+            label = progress
+            if progress.startswith("FAILED"):
+                return "░" * 10 + f" {label}"
+            parts = progress.split("/")
+            try:
+                current, total = int(parts[0]), int(parts[1])
+                filled = int((current / total) * 10) if total else 0
+            except (ValueError, IndexError):
+                filled = 0
+            empty = 10 - filled
+            return "█" * filled + "░" * empty + f" {label}"
         filled = int(progress / 10)
         empty = 10 - filled
         return "█" * filled + "░" * empty + f" {progress}%"
