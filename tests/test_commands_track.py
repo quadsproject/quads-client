@@ -50,32 +50,71 @@ def test_track_single_host(mock_time, mock_live_cls, mock_shell):
     mock_live_instance.update.assert_called()
 
 
-def test_track_no_active_moves(mock_shell):
+def test_track_no_active_moves_no_pending(mock_shell):
     mock_shell.connection.api.get_all_move_status.return_value = []
+    mock_shell.connection.api.get_moves.return_value = []
 
     cmd = TrackCommands(mock_shell)
     cmd.cmd_track("")
 
-    mock_shell.rich_console.print_info.assert_called_once_with("No active moves")
+    mock_shell.rich_console.print_info.assert_called_once_with("No active or scheduled moves")
+
+
+def test_track_no_active_moves_with_pending(mock_shell):
+    mock_shell.connection.api.get_all_move_status.return_value = []
+    mock_shell.connection.api.get_moves.return_value = [
+        {"host": "host1.example.com", "current": "cloud01", "new": "cloud02"},
+    ]
+
+    cmd = TrackCommands(mock_shell)
+    cmd.cmd_track("")
+
+    mock_shell.rich_console.console.print.assert_called_once()
+    table = mock_shell.rich_console.console.print.call_args[0][0]
+    assert table.title == "Scheduled Moves (awaiting next move cycle)"
 
 
 def test_track_no_active_move_single(mock_shell):
     mock_shell.connection.api.get_move_status.return_value = None
+    mock_shell.connection.api.get_moves.return_value = []
 
     cmd = TrackCommands(mock_shell)
     cmd.cmd_track("host1")
 
-    mock_shell.rich_console.print_info.assert_called_once_with("No active move for host1")
+    mock_shell.rich_console.print_info.assert_called_once_with("No active or scheduled moves for host1")
+
+
+def test_track_no_active_single_with_pending(mock_shell):
+    mock_shell.connection.api.get_move_status.return_value = None
+    mock_shell.connection.api.get_moves.return_value = [
+        {"host": "host1", "current": "cloud01", "new": "cloud02"},
+    ]
+
+    cmd = TrackCommands(mock_shell)
+    cmd.cmd_track("host1")
+
+    mock_shell.rich_console.console.print.assert_called_once()
 
 
 def test_track_cloud_filter(mock_shell):
     mock_shell.connection.api.get_all_move_status.return_value = []
+    mock_shell.connection.api.get_moves.return_value = []
 
     cmd = TrackCommands(mock_shell)
     cmd.cmd_track("cloud03")
 
     mock_shell.connection.api.get_all_move_status.assert_called_with(cloud="cloud03")
-    mock_shell.rich_console.print_info.assert_called_once_with("No active moves for cloud03")
+    mock_shell.rich_console.print_info.assert_called_once_with("No active or scheduled moves for cloud03")
+
+
+def test_track_pending_api_error(mock_shell):
+    mock_shell.connection.api.get_all_move_status.return_value = []
+    mock_shell.connection.api.get_moves.side_effect = Exception("Connection refused")
+
+    cmd = TrackCommands(mock_shell)
+    cmd.cmd_track("")
+
+    mock_shell.rich_console.print_info.assert_called_once_with("No active or scheduled moves")
 
 
 def test_track_not_authenticated(mock_shell):

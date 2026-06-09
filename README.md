@@ -72,6 +72,7 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 - [Contributing](#contributing)
 - [Screenshots](#screenshots)
   - [TUI CLI](#tui-cli)
+  - [Active Provisioning Tracking](#active-provisioning-tracking)
   - [GUI](#gui)
 - [Links](#links)
 
@@ -1231,6 +1232,26 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to th
 
 <p align="left">
   <img src="images/quads-client-one-shot-ssm.png" alt="TUI CLI one-shot self-scheduling" width="600">
+</p>
+
+### Active Provisioning Tracking
+
+**Live move tracking with Rich auto-refresh**
+
+<p align="left">
+  <img src="images/track1.png" alt="Live move tracking" width="600">
+</p>
+
+**Scheduled moves awaiting next move cycle**
+
+<p align="left">
+  <img src="images/track2.png" alt="Scheduled moves awaiting move cycle" width="600">
+</p>
+
+**Activity summary grouped by cloud**
+
+<p align="left">
+  <img src="images/track3.png" alt="Activity summary grouped by cloud" width="600">
 </p>
 
 ### GUI

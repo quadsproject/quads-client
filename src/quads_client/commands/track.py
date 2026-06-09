@@ -49,7 +49,7 @@ class TrackCommands:
         data = api.get_move_status(hostname)
 
         if not data:
-            self.shell.rich_console.print_info(f"No active move for {hostname}")
+            self._show_pending_moves(api, hostname=hostname)
             return
 
         try:
@@ -72,8 +72,7 @@ class TrackCommands:
         moves = api.get_all_move_status(cloud=cloud)
 
         if not moves:
-            label = f" for {cloud}" if cloud else ""
-            self.shell.rich_console.print_info(f"No active moves{label}")
+            self._show_pending_moves(api, cloud)
             return
 
         try:
@@ -89,6 +88,47 @@ class TrackCommands:
 
         count = len(moves) if moves else 0
         console.print(f"[dim]Stopped tracking. {count} move(s) active.[/dim]")
+
+    def _show_pending_moves(self, api, cloud=None, hostname=None):
+        try:
+            pending = api.get_moves()
+        except Exception:
+            pending = []
+
+        if cloud:
+            pending = [m for m in pending if m.get("new") == cloud]
+        if hostname:
+            pending = [m for m in pending if m.get("host") == hostname]
+
+        if not pending:
+            if hostname:
+                self.shell.rich_console.print_info(f"No active or scheduled moves for {hostname}")
+            elif cloud:
+                self.shell.rich_console.print_info(f"No active or scheduled moves for {cloud}")
+            else:
+                self.shell.rich_console.print_info("No active or scheduled moves")
+            return
+
+        table = Table(
+            title="Scheduled Moves (awaiting next move cycle)",
+            show_header=True,
+            header_style="bold yellow",
+        )
+        table.add_column("Host")
+        table.add_column("From")
+        table.add_column("To")
+        table.add_column("Status")
+
+        for move in pending:
+            table.add_row(
+                move.get("host", "?"),
+                move.get("current", ""),
+                move.get("new", ""),
+                "Scheduled",
+                style="yellow",
+            )
+
+        self.shell.rich_console.console.print(table)
 
     def _build_all_table(self, moves):
         now = datetime.now().strftime("%H:%M:%S")

@@ -122,12 +122,26 @@ def test_move_status_not_found_single(move_commands, mock_shell):
 
 
 class TestActivity:
-    def test_activity_no_moves(self, move_commands, mock_shell):
+    def test_activity_no_moves_no_pending(self, move_commands, mock_shell):
         mock_shell.connection.api.get_all_move_status.return_value = []
+        mock_shell.connection.api.get_moves.return_value = []
 
         move_commands.cmd_activity("")
 
-        mock_shell.rich_console.print_info.assert_called_with("No active operations")
+        mock_shell.rich_console.print_info.assert_called_with("No active or scheduled operations")
+
+    def test_activity_no_moves_with_pending(self, move_commands, mock_shell):
+        mock_shell.connection.api.get_all_move_status.return_value = []
+        mock_shell.connection.api.get_moves.return_value = [
+            {"host": "host1.example.com", "current": "cloud01", "new": "cloud02"},
+        ]
+
+        move_commands.cmd_activity("")
+
+        mock_shell.rich_console.print_section.assert_called_once()
+        section_arg = mock_shell.rich_console.print_section.call_args[0][0]
+        assert "Scheduled Operations" in section_arg
+        assert "1 move(s)" in section_arg
 
     def test_activity_grouped_by_cloud(self, move_commands, mock_shell):
         mock_shell.connection.api.get_all_move_status.return_value = [
@@ -183,6 +197,14 @@ class TestActivity:
         move_commands.cmd_activity("")
 
         mock_shell.rich_console.print_info.assert_called_with("Move tracking is not available on this server")
+
+    def test_activity_pending_api_error(self, move_commands, mock_shell):
+        mock_shell.connection.api.get_all_move_status.return_value = []
+        mock_shell.connection.api.get_moves.side_effect = Exception("Connection refused")
+
+        move_commands.cmd_activity("")
+
+        mock_shell.rich_console.print_info.assert_called_with("No active or scheduled operations")
 
 
 class TestProgressTracker:
