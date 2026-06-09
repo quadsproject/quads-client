@@ -178,21 +178,44 @@ pip install -e .
 > [!TIP]
 > The `add_quads_server` command creates the configuration file interactively. This is the easiest way to get started.
 
-Use the interactive `add_quads_server` command:
+**1. Launch the client and add your server:**
 
-```bash
-quads-client
-add_quads_server
-# Follow the prompts to add your QUADS server
-# Choose authentication: SSO Token, Username & Password, or None (register later)
-connect <server_name>
-
-# Authenticate with SSO token (preferred):
-token-login
-
-# Or register a new account (legacy):
-register your.email@example.com YourPassword123
 ```
+$ quads-client
+(disconnected) > add_quads_server
+
+=== Add New QUADS Server ===
+
+Enter a friendly name for this server (e.g., my-quads, scalelab): quads_prod
+Enter server URL (e.g., https://quads1.example.com): https://quads.example.com
+Enable SSL certificate verification? [Y/n]: Y
+
+Authentication method:
+  1) Username & Password
+  2) SSO Token
+  3) None (register later)
+Choice [1/2/3]: 2
+Email: user@example.com
+SSO Token: <paste your token>
+
+Testing connection to https://quads.example.com...
+Server is reachable
+Server 'quads_prod' added successfully!
+```
+
+**2. Connect and start working:**
+
+```
+(disconnected) > connect quads_prod
+OK: Connected to quads_prod as user@example.com (session 1)
+✓ (quads_prod) > ls_available
+✓ (quads_prod) > my_assignments
+```
+
+> [!NOTE]
+> If you chose "None (register later)" during setup, authenticate after connecting:
+> - SSO token (preferred): `token-login`
+> - New account: `register your.email@example.com YourPassword123`
 
 ### Manual Configuration (Advanced)
 
