@@ -52,6 +52,7 @@ class MoveProgressView(BaseAdminView):
 
         self.tree.tree.tag_configure("failed", foreground="red")
         self.tree.tree.tag_configure("completed", foreground="green")
+        self.tree.tree.tag_configure("scheduled", foreground="goldenrod")
 
         self.create_status_label()
         self._load_progress()
@@ -65,16 +66,40 @@ class MoveProgressView(BaseAdminView):
         self._loading = True
 
         def _fetch():
-            return self.shell.connection.api.get_all_move_status()
+            api = self.shell.connection.api
+            active = api.get_all_move_status()
+            if active:
+                return ("active", active)
+            try:
+                pending = api.get_moves()
+            except Exception:
+                pending = []
+            return ("pending", pending) if pending else ("active", [])
 
-        def _on_loaded(moves):
+        def _on_loaded(result):
             self._loading = False
             if not self.winfo_exists():
                 return
             self.tree.clear()
+            source, moves = result
             if not moves:
                 self.update_status("No active moves")
                 return
+
+            if source == "pending":
+                for move in moves:
+                    values = (
+                        move.get("host", "?"),
+                        move.get("current", ""),
+                        move.get("new", ""),
+                        "",
+                        "Scheduled",
+                        "Awaiting next move cycle",
+                    )
+                    self.tree.tree.insert("", tk.END, values=values, tags=("scheduled",))
+                self.update_status(f"{len(moves)} scheduled move(s) (awaiting next move cycle)")
+                return
+
             for move in moves:
                 status = move.get("status", "pending")
                 tag = ""

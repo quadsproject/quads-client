@@ -234,17 +234,18 @@ class MyHostsView(ttk.Frame):
                             if isinstance(hostname, dict):
                                 hostname = hostname.get("name", "")
 
-                            status = "active" if is_validated else "provisioning"
-
-                            if status == "active":
+                            if is_validated:
+                                status = "active"
                                 progress = format_progress_str("completed")
                             else:
-                                progress = "N/A"
                                 move_data = move_status_map.get(str(hostname))
                                 if move_data:
                                     move_status = move_data.get("status", "pending")
                                     progress = format_progress_str(move_status)
                                     status = move_status
+                                else:
+                                    status = "scheduled"
+                                    progress = "Awaiting move"
 
                             hosts.append({"name": str(hostname), "status": status, "progress": progress})
 
@@ -335,6 +336,9 @@ class MyHostsView(ttk.Frame):
             elif host["status"] == "failed":
                 tree.item(item_id, tags=("failed",))
                 tree.tag_configure("failed", foreground=self.shell.gui_app.theme_manager.get_color("error"))
+            elif host["status"] == "scheduled":
+                tree.item(item_id, tags=("scheduled",))
+                tree.tag_configure("scheduled", foreground=self.shell.gui_app.theme_manager.get_color("warning"))
             else:
                 tree.item(item_id, tags=("provisioning",))
                 tree.tag_configure(
@@ -353,10 +357,10 @@ class MyHostsView(ttk.Frame):
         ).pack(side=tk.LEFT)
 
     def _get_status_icon(self, status):
-        """Get status icon for host"""
         icons = {
             "active": "✓",
             "failed": "✗",
+            "scheduled": "○",
         }
         return icons.get(status, "⏳")
 
