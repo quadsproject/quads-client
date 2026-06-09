@@ -145,6 +145,117 @@ def test_my_hosts_duplicate_hosts_across_assignments(mock_shell):
     assert "Total unique hosts: 3" in last_call
 
 
+def test_my_hosts_validated_shows_completed_progress(mock_shell):
+    """Test my_hosts shows 12/12 progress for validated assignments"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.username = "test@example.com"
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {
+            "id": 1,
+            "owner": "test",
+            "cloud": {"name": "cloud02"},
+            "description": "Test",
+            "validated": True,
+        }
+    ]
+    mock_shell.connection.api.get_schedules.return_value = [
+        {"id": 1, "host": {"name": "host01.example.com"}, "end": "2026-06-15"}
+    ]
+    mock_shell.connection.api.get_all_move_status.return_value = []
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_my_hosts("")
+
+    output = " ".join(str(c) for c in mock_shell.poutput.call_args_list)
+    assert "Active" in output
+    assert "12/12" in output
+
+
+def test_my_hosts_provisioning_with_move_progress(mock_shell):
+    """Test my_hosts shows real move progress for provisioning hosts"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.username = "test@example.com"
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {
+            "id": 1,
+            "owner": "test",
+            "cloud": {"name": "cloud03"},
+            "description": "Test",
+            "validated": False,
+        }
+    ]
+    mock_shell.connection.api.get_schedules.return_value = [
+        {"id": 1, "host": {"name": "host01.example.com"}, "end": "2026-06-15"}
+    ]
+    mock_shell.connection.api.get_all_move_status.return_value = [
+        {"host": "host01.example.com", "status": "hardware_prep"},
+    ]
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_my_hosts("")
+
+    output = " ".join(str(c) for c in mock_shell.poutput.call_args_list)
+    assert "Provisioning" in output
+    assert "4/12" in output
+
+
+def test_my_hosts_failed_move(mock_shell):
+    """Test my_hosts shows Failed status when move has failed"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.username = "test@example.com"
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {
+            "id": 1,
+            "owner": "test",
+            "cloud": {"name": "cloud03"},
+            "description": "Test",
+            "validated": False,
+        }
+    ]
+    mock_shell.connection.api.get_schedules.return_value = [
+        {"id": 1, "host": {"name": "host01.example.com"}, "end": "2026-06-15"}
+    ]
+    mock_shell.connection.api.get_all_move_status.return_value = [
+        {"host": "host01.example.com", "status": "failed"},
+    ]
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_my_hosts("")
+
+    output = " ".join(str(c) for c in mock_shell.poutput.call_args_list)
+    assert "Failed" in output
+    assert "FAILED" in output
+
+
+def test_my_hosts_move_status_api_error(mock_shell):
+    """Test my_hosts handles move status API errors gracefully"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.username = "test@example.com"
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {
+            "id": 1,
+            "owner": "test",
+            "cloud": {"name": "cloud02"},
+            "description": "Test",
+            "validated": True,
+        }
+    ]
+    mock_shell.connection.api.get_schedules.return_value = [
+        {"id": 1, "host": {"name": "host01.example.com"}, "end": "2026-06-15"}
+    ]
+    mock_shell.connection.api.get_all_move_status.side_effect = Exception("Connection refused")
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_my_hosts("")
+
+    output = " ".join(str(c) for c in mock_shell.poutput.call_args_list)
+    assert "host01.example.com" in output
+
+
 def test_schedule_not_authenticated(mock_shell):
     """Test schedule when not authenticated"""
     mock_shell.connection.is_connected = True
