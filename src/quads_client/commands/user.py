@@ -802,13 +802,14 @@ class UserCommands:
                                 status = "Active"
                                 progress = format_progress_str("completed")
                             else:
-                                status = "Provisioning"
-                                progress = "N/A"
                                 move_data = move_status_map.get(host_name)
                                 if move_data:
                                     move_st = move_data.get("status", "pending")
                                     progress = format_progress_str(move_st)
                                     status = move_st.replace("_", " ").title()
+                                else:
+                                    status = "Scheduled"
+                                    progress = "Awaiting move"
 
                             unique_hosts[host_name] = {
                                 "status": status,

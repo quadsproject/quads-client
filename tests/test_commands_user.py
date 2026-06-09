@@ -230,6 +230,33 @@ def test_my_hosts_failed_move(mock_shell):
     assert "FAILED" in output
 
 
+def test_my_hosts_scheduled_no_move_data(mock_shell):
+    """Test my_hosts shows Scheduled status when not validated and no move data"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.username = "test@example.com"
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {
+            "id": 1,
+            "owner": "test",
+            "cloud": {"name": "cloud03"},
+            "description": "Test",
+            "validated": False,
+        }
+    ]
+    mock_shell.connection.api.get_schedules.return_value = [
+        {"id": 1, "host": {"name": "host01.example.com"}, "end": "2026-06-15"}
+    ]
+    mock_shell.connection.api.get_all_move_status.return_value = []
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_my_hosts("")
+
+    output = " ".join(str(c) for c in mock_shell.poutput.call_args_list)
+    assert "Scheduled" in output
+    assert "Awaiting move" in output
+
+
 def test_my_hosts_move_status_api_error(mock_shell):
     """Test my_hosts handles move status API errors gracefully"""
     mock_shell.connection.is_connected = True
