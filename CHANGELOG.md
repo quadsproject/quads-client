@@ -1,6 +1,43 @@
 # CHANGELOG
 
 
+## v0.8.0 (2026-06-09)
+
+### Bug Fixes
+
+- Add additional code surface.
+  ([`0266d56`](https://github.com/quadsproject/quads-client/commit/0266d56e44c38e1e0c98b83e6e964970b3a2350e))
+
+### Chores
+
+- Update RPM spec version to 0.7.2
+  ([`d751d22`](https://github.com/quadsproject/quads-client/commit/d751d22faed57a7e74da2e26f2649e40c8d31a78))
+
+### Features
+
+- Add ack for future actions, docs.
+  ([`f64132d`](https://github.com/quadsproject/quads-client/commit/f64132d00c31dc406e86174e529c0269ec10b6e5))
+
+fixes: https://github.com/quadsproject/quads-client/issues/125
+
+- Add activity and tracking to CLI.
+  ([`b43a6aa`](https://github.com/quadsproject/quads-client/commit/b43a6aaa01ae01ddaf1b9bd7370f62d38698cc9d))
+
+Feature A: track command (src/quads_client/commands/track.py) - track -- live-refreshing Rich table
+  of all active moves (5s poll) - track hostname -- single-host detailed tracking - track cloud03 --
+  filter by target cloud - Ctrl+C exits cleanly, auto-exits when all moves complete or fail
+
+Feature B: Prompt activity indicator (shell.py) - postcmd() hook refreshes the prompt after every
+  command - _get_activity_indicator() checks for active moves with 30s cache TTL - Shows ⚡ in yellow
+  between server name and admin badge when moves are active
+
+Feature C: activity command (src/quads_client/commands/moves.py) - One-shot cloud-grouped summary
+  with icons, stage names, and progress - Format: "Active Operations: N move(s) across M cloud(s)"
+  with per-cloud host listings
+
+Assisted-by: claude
+
+
 ## v0.7.2 (2026-06-09)
 
 ### Bug Fixes
