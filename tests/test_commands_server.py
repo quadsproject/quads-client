@@ -343,11 +343,34 @@ def test_add_quads_server_success(mock_shell):
                             server_cmd.cmd_add_quads_server("")
 
                             mock_dump.assert_called_once()
-                            # Verify empty credentials were set
                             call_args = mock_dump.call_args[0][0]
                             assert call_args["servers"]["quads3.example.com"]["username"] == ""
                             assert call_args["servers"]["quads3.example.com"]["password"] == ""
+                            assert call_args["default_server"] == "quads3.example.com"
                             assert mock_shell.poutput.call_count >= 2
+
+
+def test_add_quads_server_second_server_no_default_change(mock_shell):
+    """Test add-quads-server does not overwrite default_server when servers exist"""
+    mock_shell.config.config_path = "~/.config/quads/quads-client.yml"
+
+    yaml_content = {
+        "servers": {"existing.example.com": {"url": "https://existing.example.com"}},
+        "default_server": "existing.example.com",
+    }
+
+    with patch("builtins.input", side_effect=["quads4.example.com", "https://quads4.example.com", "y", "3"]):
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            with patch("builtins.open", mock_open(read_data="servers: {}\n")):
+                with patch("yaml.safe_load", return_value=yaml_content):
+                    with patch("yaml.dump") as mock_dump:
+                        with patch.object(ServerCommands, "cmd_config_reload"):
+                            server_cmd = ServerCommands(mock_shell)
+                            server_cmd.cmd_add_quads_server("")
+
+                            call_args = mock_dump.call_args[0][0]
+                            assert call_args["default_server"] == "existing.example.com"
 
 
 def test_add_quads_server_empty_name(mock_shell):

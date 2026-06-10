@@ -232,7 +232,8 @@ class ServerCommands:
                 self.shell.poutput("Server not added")
                 return
 
-        # Add server to config
+        is_first_server = len(config_data["servers"]) == 0
+
         config_data["servers"][server_name] = {
             "url": server_url,
             "username": username,
@@ -240,6 +241,9 @@ class ServerCommands:
             "api_token": api_token,
             "verify": verify,
         }
+
+        if is_first_server:
+            config_data["default_server"] = server_name
 
         try:
             with open(config_path, "w") as f:
