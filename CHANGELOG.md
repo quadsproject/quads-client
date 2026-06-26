@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.8.5 (2026-06-26)
+
+### Bug Fixes
+
+- Add more resilience to tracking move stages.
+  ([`4c783cc`](https://github.com/quadsproject/quads-client/commit/4c783cc802dbcc35e4891adde33d7ec5e0abc3fb))
+
+* Add further resilience to CLI activity tracking.
+
+related-to: https://github.com/quadsproject/quads/issues/692
+
+fixes: https://github.com/quadsproject/quads-client/issues/141
+
+### Chores
+
+- Update image
+  ([`a514671`](https://github.com/quadsproject/quads-client/commit/a514671ebb6b539b08fcf0c39cb4e30ca0b5f20a))
+
+- Update RPM spec version to 0.8.4
+  ([`9ec3fa4`](https://github.com/quadsproject/quads-client/commit/9ec3fa4c55fedebb5411ddbc4d4ada3f3940f1df))
+
+
 ## v0.8.4 (2026-06-10)
 
 ### Bug Fixes
