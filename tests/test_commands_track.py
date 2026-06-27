@@ -33,7 +33,7 @@ def test_track_all_with_moves(mock_time, mock_live_cls, mock_shell):
 @patch("quads_client.commands.track.time")
 def test_track_single_host(mock_time, mock_live_cls, mock_shell):
     initial = {"host": "host1", "status": "hardware_prep", "source_cloud": "cloud01", "target_cloud": "cloud03"}
-    completed = {"host": "host1", "status": "completed", "source_cloud": "cloud01", "target_cloud": "cloud03"}
+    completed = {"host": "host1", "status": "failed", "source_cloud": "cloud01", "target_cloud": "cloud03"}
     mock_shell.connection.api.get_move_status.side_effect = [
         initial,
         completed,
@@ -125,7 +125,7 @@ def test_track_single_pending_transitions(mock_time, mock_live_cls, mock_shell):
         "host": "host1",
         "source_cloud": "cloud01",
         "target_cloud": "cloud02",
-        "status": "completed",
+        "status": "failed",
     }
     mock_shell.connection.api.get_move_status.side_effect = [
         None,
@@ -421,7 +421,7 @@ def test_track_single_api_error_during_poll(mock_time, mock_live_cls, mock_shell
 @patch("quads_client.commands.track.Live")
 @patch("quads_client.commands.track.time")
 def test_track_all_terminal_status_exit(mock_time, mock_live_cls, mock_shell):
-    """Moves reaching completed/failed in API response trigger clean exit"""
+    """All moves reaching failed status in API response trigger clean exit"""
     active = {
         "host": "host1.example.com",
         "status": "provisioning",
@@ -430,7 +430,7 @@ def test_track_all_terminal_status_exit(mock_time, mock_live_cls, mock_shell):
     }
     done = {
         "host": "host1.example.com",
-        "status": "completed",
+        "status": "failed",
         "source_cloud": "cloud01",
         "target_cloud": "cloud02",
     }
@@ -462,10 +462,10 @@ def test_track_all_transient_disappear_recovers(mock_time, mock_live_cls, mock_s
     }
     done = {
         "host": "host1.example.com",
-        "status": "completed",
+        "status": "failed",
         "source_cloud": "cloud01",
         "target_cloud": "cloud02",
-        "message": "Completed",
+        "message": "Failed",
     }
     mock_shell.connection.api.get_all_move_status.side_effect = [
         [move_data],
@@ -499,10 +499,10 @@ def test_track_single_transient_disappear_recovers(mock_time, mock_live_cls, moc
     }
     done = {
         "host": "host1.example.com",
-        "status": "completed",
+        "status": "failed",
         "source_cloud": "cloud01",
         "target_cloud": "cloud02",
-        "message": "Completed",
+        "message": "Failed",
     }
     mock_shell.connection.api.get_move_status.side_effect = [
         initial,

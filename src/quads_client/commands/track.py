@@ -84,8 +84,8 @@ class TrackCommands:
                     gone_count = 0
                     last_data = dict(data)
                     live.update(self._build_single_table(data))
-                    status = data.get("status", "")
-                    if status in ("completed", "failed"):
+                    status = data.get("status")
+                    if status == "failed":
                         completed = True
                         time.sleep(1)
                         break
@@ -134,7 +134,7 @@ class TrackCommands:
                     gone_count = 0
                     last_moves = list(moves)
                     live.update(self._build_all_table(moves))
-                    if all(m.get("status") in ("completed", "failed") for m in moves):
+                    if all(m.get("status") == "failed" for m in moves):
                         completed = True
                         time.sleep(1)
                         break
