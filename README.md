@@ -493,7 +493,7 @@ cloud_list  cloud_only
 - **Hostnames**: `mark_broken <Tab>` → shows non-broken hosts
 - **Assignment IDs**: `terminate <Tab>` → shows your active assignment IDs
 - **Server names**: `connect <Tab>` → shows configured servers
-- **Keywords**: `schedule <Tab>` → shows options like `description`, `nowipe`, `vlan`, `qinq`, `model`, `ram`
+- **Keywords**: `schedule <Tab>` → shows options like `description`, `nowipe`, `vlan`, `qinq`, `model`, `ram`, `disk-type`, `gpu-vendor`, `nic-vendor`, etc.
 
 **Examples**:
 ```
@@ -832,6 +832,14 @@ schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIO
   os <title>                                     - OS for provisioning (see os_list)
   model <model>                                  - Filter by model (count mode only)
   ram <GB>                                       - Minimum RAM in GB (count mode only)
+  disk-type <TYPE>                               - Disk type: nvme, ssd, sata (count mode only)
+  disk-size <GB>                                 - Minimum disk size in GB (count mode only)
+  disk-count <N>                                 - Minimum number of disks (count mode only)
+  gpu-vendor <VENDOR>                            - GPU vendor, e.g. "NVIDIA Corporation" (count mode only)
+  gpu-product <PRODUCT>                          - GPU model, e.g. "Tesla V100" (count mode only)
+  interfaces <N>                                 - Minimum network interfaces (count mode only)
+  nic-vendor <VENDOR>                            - NIC vendor, e.g. "Mellanox" (count mode only)
+  nic-speed <GBPS>                               - Minimum NIC speed in Gbps (count mode only)
 my_assignments                                   - List all your assignments
 my_hosts                                         - Show your currently scheduled hosts
 available                                        - Show available hosts for self-scheduling
@@ -843,7 +851,9 @@ terminate <assignment-id> [hostname]             - Terminate assignment or relea
 ```bash
 # MODE 1: Count - just specify a NUMBER (QUADS picks hosts for you)
 schedule 3 description "Dev testing"
-schedule 5 description "Perf lab" model r640 ram 128  # With filters
+schedule 5 description "Perf lab" model r640 ram 128       # With filters
+schedule 3 description "GPU work" gpu-vendor "NVIDIA Corporation"  # GPU filter
+schedule 4 description "NVMe test" disk-type nvme nic-speed 25     # Disk + NIC
 
 # MODE 2: Specific hosts - comma-separated hostnames (NO SPACES!)
 schedule host01.example.com,host02.example.com description "CI pipeline"
@@ -863,21 +873,20 @@ terminate 42 host03.example.com
 
 **Advanced Hardware Filtering:**
 
-The `schedule` command supports `model` and `ram` filters directly in count mode. For more specific hardware requirements (GPU, disk type, NIC vendor/speed, interface count), use `ls-available` to discover matching hosts, then schedule them by name:
+All hardware metadata filters are available directly in count mode. QUADS selects only hosts matching your criteria:
 
 ```bash
-# Find hosts with NVMe disks and 25Gbps NICs
-ls-available disk-type nvme nic-speed 25
-
-# Schedule the discovered hosts by name
-schedule host01.example.com,host02.example.com description "NVMe perf testing"
+# Count mode with hardware filters (QUADS picks matching hosts)
+schedule 3 description "NVMe perf" disk-type nvme disk-size 500 nic-speed 25
+schedule 2 description "ML training" gpu-vendor "NVIDIA Corporation" ram 256
+schedule 4 description "High-NIC" interfaces 4 nic-vendor Mellanox
 ```
 
-```bash
-# Find GPU hosts with enough RAM
-ls-available gpu-vendor "NVIDIA Corporation" ram 256
+You can also use `ls-available` to discover hosts first, then schedule specific ones by name:
 
-# Schedule specific GPU hosts
+```bash
+# Discover, then schedule by name
+ls-available gpu-vendor "NVIDIA Corporation" ram 256
 schedule host03.example.com,host04.example.com description "ML training"
 ```
 

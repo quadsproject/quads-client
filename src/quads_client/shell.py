@@ -391,6 +391,14 @@ class QuadsClientShell(cmd2.Cmd):
             "model",
             "ram",
             "host-list",
+            "disk-type",
+            "disk-size",
+            "disk-count",
+            "gpu-vendor",
+            "gpu-product",
+            "interfaces",
+            "nic-vendor",
+            "nic-speed",
         ]
 
         # For admin mode, try to get cloud names

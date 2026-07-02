@@ -686,7 +686,7 @@ class ScheduleView(ttk.Frame):
         if self.nowipe_var.get():
             args += " nowipe"
 
-        # Add advanced options if shown (only model/ram supported by schedule command)
+        # Add advanced hardware filters for count mode
         if self.advanced_var.get() and hasattr(self, "host_filter_frame"):
             active_filters = self.host_filter_frame.get_filters()
             if "model" in active_filters:
@@ -694,6 +694,16 @@ class ScheduleView(ttk.Frame):
             if "memory__gte" in active_filters:
                 ram_gb = active_filters["memory__gte"] // 1024
                 args += f" ram {ram_gb}"
+            if "disks.disk_type" in active_filters:
+                args += f" disk-type {active_filters['disks.disk_type']}"
+            if "disks.size_gb__gte" in active_filters:
+                args += f" disk-size {active_filters['disks.size_gb__gte']}"
+            if "disks.count__gte" in active_filters:
+                args += f" disk-count {active_filters['disks.count__gte']}"
+            if "interfaces.vendor" in active_filters:
+                args += f" nic-vendor {active_filters['interfaces.vendor']}"
+            if "interfaces.speed__gte" in active_filters:
+                args += f" nic-speed {active_filters['interfaces.speed__gte']}"
 
         try:
             # Capture output from schedule command

@@ -179,6 +179,99 @@ class TestUnifiedScheduleSSM:
         error_calls = [str(call) for call in mock_shell.perror.call_args_list]
         assert any("description is required" in call or "Invalid arguments" in call for call in error_calls)
 
+    def test_schedule_ssm_with_disk_filters(self, mock_shell):
+        """Test SSM schedule passes disk filters to filter_available"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = False
+        mock_shell.connection.username = "alice@example.com"
+        mock_shell.connection.api.filter_available.return_value = [
+            {"name": "host01.example.com"},
+        ]
+        mock_shell.connection.api.create_self_assignment.return_value = {
+            "id": 42,
+            "cloud": {"name": "cloud17"},
+            "owner": "alice",
+        }
+        mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+
+        user_cmd = UserCommands(mock_shell)
+        user_cmd.cmd_schedule('1 description "Test" disk-type nvme disk-size 500 disk-count 4')
+
+        filters = mock_shell.connection.api.filter_available.call_args[0][0]
+        assert filters["can_self_schedule"] is True
+        assert filters["disks.disk_type"] == "nvme"
+        assert filters["disks.size_gb__gte"] == 500
+        assert filters["disks.count__gte"] == 4
+
+    def test_schedule_ssm_with_gpu_filters(self, mock_shell):
+        """Test SSM schedule passes GPU filters to filter_available"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = False
+        mock_shell.connection.username = "alice@example.com"
+        mock_shell.connection.api.filter_available.return_value = [
+            {"name": "host01.example.com"},
+        ]
+        mock_shell.connection.api.create_self_assignment.return_value = {
+            "id": 42,
+            "cloud": {"name": "cloud17"},
+            "owner": "alice",
+        }
+        mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+
+        user_cmd = UserCommands(mock_shell)
+        user_cmd.cmd_schedule('1 description "Test" gpu-vendor "NVIDIA Corporation" gpu-product "Tesla V100"')
+
+        filters = mock_shell.connection.api.filter_available.call_args[0][0]
+        assert filters["processors.vendor"] == "NVIDIA Corporation"
+        assert filters["processors.product"] == "Tesla V100"
+
+    def test_schedule_ssm_with_nic_filters(self, mock_shell):
+        """Test SSM schedule passes NIC filters to filter_available"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = False
+        mock_shell.connection.username = "alice@example.com"
+        mock_shell.connection.api.filter_available.return_value = [
+            {"name": "host01.example.com"},
+        ]
+        mock_shell.connection.api.create_self_assignment.return_value = {
+            "id": 42,
+            "cloud": {"name": "cloud17"},
+            "owner": "alice",
+        }
+        mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+
+        user_cmd = UserCommands(mock_shell)
+        user_cmd.cmd_schedule('1 description "Test" nic-vendor Mellanox nic-speed 25')
+
+        filters = mock_shell.connection.api.filter_available.call_args[0][0]
+        assert filters["interfaces.vendor"] == "Mellanox"
+        assert filters["interfaces.speed__gte"] == 25
+
+    def test_schedule_ssm_with_interfaces_filter(self, mock_shell):
+        """Test SSM schedule passes interface count filter to filter_available"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = False
+        mock_shell.connection.username = "alice@example.com"
+        mock_shell.connection.api.filter_available.return_value = [
+            {"name": "host01.example.com"},
+        ]
+        mock_shell.connection.api.create_self_assignment.return_value = {
+            "id": 42,
+            "cloud": {"name": "cloud17"},
+            "owner": "alice",
+        }
+        mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+
+        user_cmd = UserCommands(mock_shell)
+        user_cmd.cmd_schedule('1 description "Test" interfaces 4')
+
+        filters = mock_shell.connection.api.filter_available.call_args[0][0]
+        assert filters["interfaces.count__gte"] == 4
+
 
 class TestUnifiedScheduleAdmin:
     """Test admin mode schedule command"""
