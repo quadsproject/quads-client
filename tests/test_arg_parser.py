@@ -231,6 +231,21 @@ class TestParseScheduleSSMArgs:
         assert result["description"] == "GPU performance testing"
         assert result["gpu_vendor"] == "NVIDIA"
 
+    def test_filter_missing_value_raises(self):
+        """Test that filter keyword without value raises ValueError"""
+        with pytest.raises(ValueError, match="'gpu-vendor' requires a value"):
+            parse_schedule_ssm_args('2 description "Test" gpu-vendor')
+
+    def test_filter_missing_value_model(self):
+        """Test that model keyword without value raises ValueError"""
+        with pytest.raises(ValueError, match="'model' requires a value"):
+            parse_schedule_ssm_args('2 description "Test" model')
+
+    def test_filter_missing_value_disk_type(self):
+        """Test that disk-type keyword without value raises ValueError"""
+        with pytest.raises(ValueError, match="'disk-type' requires a value"):
+            parse_schedule_ssm_args('2 description "Test" disk-type')
+
 
 class TestParseScheduleAdminArgs:
     """Test parse_schedule_admin_args function"""

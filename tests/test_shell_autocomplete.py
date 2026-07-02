@@ -108,3 +108,50 @@ def test_complete_connect_no_match():
             completions = shell.complete_connect("xyz", "connect xyz", 8, 11)
 
             assert completions == []
+
+
+def test_complete_ls_available_all_keywords():
+    """Test autocomplete for ls_available shows all filter keywords"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+
+            completions = shell.complete_ls_available("", "ls_available ", 13, 13)
+
+            assert "model" in completions
+            assert "ram" in completions
+            assert "gpu-vendor" in completions
+            assert "gpu-product" in completions
+            assert "disk-type" in completions
+            assert "disk-size" in completions
+            assert "disk-count" in completions
+            assert "interfaces" in completions
+            assert "nic-vendor" in completions
+            assert "nic-speed" in completions
+            assert "start" in completions
+            assert "end" in completions
+
+
+def test_complete_ls_available_filtered():
+    """Test autocomplete for ls_available filters by prefix"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+
+            completions = shell.complete_ls_available("disk", "ls_available disk", 13, 17)
+
+            assert "disk-type" in completions
+            assert "disk-size" in completions
+            assert "disk-count" in completions
+            assert "model" not in completions
+
+
+def test_complete_ls_available_no_match():
+    """Test autocomplete for ls_available with no matching keywords"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+
+            completions = shell.complete_ls_available("xyz", "ls_available xyz", 13, 16)
+
+            assert completions == []
