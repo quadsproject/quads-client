@@ -13,7 +13,7 @@
 %define name quads-client
 %define reponame quads-client
 %define branch main
-%define version 0.8.6
+%define version 0.8.7
 %define build_timestamp %{lua: print(os.date("%Y%m%d"))}
 
 Summary: QUADS Client TUI Shell for managing multiple QUADS server instances
