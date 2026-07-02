@@ -861,6 +861,28 @@ terminate 42
 terminate 42 host03.example.com
 ```
 
+**Advanced Hardware Filtering:**
+
+The `schedule` command supports `model` and `ram` filters directly in count mode. For more specific hardware requirements (GPU, disk type, NIC vendor/speed, interface count), use `ls-available` to discover matching hosts, then schedule them by name:
+
+```bash
+# Find hosts with NVMe disks and 25Gbps NICs
+ls-available disk-type nvme nic-speed 25
+
+# Schedule the discovered hosts by name
+schedule host01.example.com,host02.example.com description "NVMe perf testing"
+```
+
+```bash
+# Find GPU hosts with enough RAM
+ls-available gpu-vendor "NVIDIA Corporation" ram 256
+
+# Schedule specific GPU hosts
+schedule host03.example.com,host04.example.com description "ML training"
+```
+
+See [Available Hosts](#available-hosts) for the full list of supported hardware filters.
+
 **Common Mistakes:**
 ```bash
 # ❌ WRONG - "hosts" is not a keyword!
@@ -987,7 +1009,7 @@ shrink host01.example.com weeks 2
 ls_available [OPTIONS]
   start YYYY-MM-DD        - Start date for availability
   end YYYY-MM-DD          - End date for availability
-  model MODEL             - Filter by server model
+  model MODEL             - Filter by server model (case-insensitive)
   ram GB                  - Minimum RAM in GB
   gpu-vendor VENDOR       - GPU vendor (e.g., "NVIDIA Corporation")
   gpu-product PRODUCT     - GPU model (e.g., "Tesla V100")
@@ -995,6 +1017,8 @@ ls_available [OPTIONS]
   disk-type TYPE          - Disk type (nvme, ssd, sata)
   disk-count N            - Minimum number of disks
   interfaces N            - Minimum number of network interfaces
+  nic-vendor VENDOR       - NIC vendor (e.g., "Intel", "Mellanox")
+  nic-speed GBPS          - Minimum NIC speed in Gbps
 ```
 
 **Examples:**
@@ -1002,6 +1026,8 @@ ls_available [OPTIONS]
 ls_available model r640 ram 256
 ls_available gpu-vendor "NVIDIA Corporation" gpu-product "Tesla V100"
 ls_available disk-type nvme disk-count 2 interfaces 4
+ls_available nic-vendor Mellanox nic-speed 25
+ls_available model r650 ram 256 disk-type nvme nic-speed 25
 ls_available start 2026-06-01 end 2026-06-15 model r650
 ```
 

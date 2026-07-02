@@ -320,7 +320,10 @@ def test_ls_available_help(available_commands, mock_shell):
     available_commands.cmd_ls_available("?")
 
     # Should print help, not call API
-    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+    help_output = " ".join(str(call) for call in mock_shell.poutput.call_args_list)
+    assert "Usage:" in help_output
+    assert "nic-vendor" in help_output
+    assert "nic-speed" in help_output
     mock_shell.connection.api.filter_hosts.assert_not_called()
 
 
@@ -344,6 +347,58 @@ def test_ls_available_help_help_flag(available_commands, mock_shell):
     # Should print help, not call API
     assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
     mock_shell.connection.api.filter_hosts.assert_not_called()
+
+
+def test_ls_available_nic_vendor_filter(available_commands, mock_shell):
+    """Test ls-available with NIC vendor filter"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_hosts.return_value = []
+
+    available_commands.cmd_ls_available("nic-vendor Intel")
+
+    expected_filters = {
+        "cloud": "cloud01",
+        "retired": False,
+        "broken": False,
+        "interfaces.vendor": "Intel",
+        "can_self_schedule": True,
+    }
+    mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
+
+
+def test_ls_available_nic_speed_filter(available_commands, mock_shell):
+    """Test ls-available with NIC speed filter"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_hosts.return_value = []
+
+    available_commands.cmd_ls_available("nic-speed 25")
+
+    expected_filters = {
+        "cloud": "cloud01",
+        "retired": False,
+        "broken": False,
+        "interfaces.speed__gte": 25,
+        "can_self_schedule": True,
+    }
+    mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
+
+
+def test_ls_available_nic_combined_filters(available_commands, mock_shell):
+    """Test ls-available with NIC vendor and speed filters combined"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_hosts.return_value = []
+
+    available_commands.cmd_ls_available("nic-vendor Mellanox nic-speed 100")
+
+    expected_filters = {
+        "cloud": "cloud01",
+        "retired": False,
+        "broken": False,
+        "interfaces.vendor": "Mellanox",
+        "interfaces.speed__gte": 100,
+        "can_self_schedule": True,
+    }
+    mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
 def test_ls_available_case_insensitive_model(available_commands, mock_shell):
