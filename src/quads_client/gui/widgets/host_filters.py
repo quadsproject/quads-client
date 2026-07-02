@@ -201,7 +201,7 @@ class HostFilterFrame(ttk.Frame):
                     pass
 
             if self.gpu_var.get():
-                filters["processors.vendor__like"] = "%"
+                filters["processors.processor_type"] = "GPU"
 
         return filters
 

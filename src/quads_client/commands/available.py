@@ -88,6 +88,23 @@ class AvailableCommands:
                 filters["interfaces.speed__gte"] = int(parts[i + 1])
                 i += 2
             else:
+                known_keywords = [
+                    "start",
+                    "end",
+                    "model",
+                    "ram",
+                    "gpu-vendor",
+                    "gpu-product",
+                    "disk-size",
+                    "disk-type",
+                    "disk-count",
+                    "interfaces",
+                    "nic-vendor",
+                    "nic-speed",
+                ]
+                if parts[i] in known_keywords:
+                    self.shell.perror(f"Filter '{parts[i]}' requires a value")
+                    return
                 i += 1
 
         try:

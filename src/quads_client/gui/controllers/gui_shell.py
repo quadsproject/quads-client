@@ -263,7 +263,7 @@ class GuiShell:
         Accepts filter keys matching the CLI ls-available command:
             model, memory__gte, disks.disk_type, disks.size_gb__gte,
             disks.count__gte, interfaces.vendor, interfaces.speed__gte,
-            processors.vendor__like, start, end
+            processors.processor_type, start, end
 
         Start/end dates trigger per-host is_available() checks (same as CLI).
 

@@ -145,15 +145,15 @@ class TestGetAvailableHostsDataFilters:
         api.filter_hosts.assert_called_once_with(expected)
 
     def test_gpu_filter(self):
-        """Test GPU filter uses processors.vendor__like wildcard"""
+        """Test GPU filter uses processors.processor_type=GPU"""
         api = MagicMock()
         api.filter_hosts.return_value = []
         api.get_current_schedules.return_value = []
         shell = self._make_gui_shell(api)
 
-        self._call_get_available_hosts_data(shell, **{"processors.vendor__like": "%"})
+        self._call_get_available_hosts_data(shell, **{"processors.processor_type": "GPU"})
 
-        expected = {"cloud": "cloud01", "retired": False, "broken": False, "processors.vendor__like": "%"}
+        expected = {"cloud": "cloud01", "retired": False, "broken": False, "processors.processor_type": "GPU"}
         api.filter_hosts.assert_called_once_with(expected)
 
     def test_combined_advanced_filters(self):
@@ -171,7 +171,7 @@ class TestGetAvailableHostsDataFilters:
                 "disks.disk_type": "nvme",
                 "disks.count__gte": 2,
                 "interfaces.vendor": "Intel",
-                "processors.vendor__like": "%",
+                "processors.processor_type": "GPU",
             },
         )
 
@@ -184,7 +184,7 @@ class TestGetAvailableHostsDataFilters:
             "disks.disk_type": "nvme",
             "disks.count__gte": 2,
             "interfaces.vendor": "Intel",
-            "processors.vendor__like": "%",
+            "processors.processor_type": "GPU",
         }
         api.filter_hosts.assert_called_once_with(expected)
 
@@ -383,7 +383,7 @@ class TestHostFilterFrameGetFilters:
                 pass
 
         if gpu:
-            filters["processors.vendor__like"] = "%"
+            filters["processors.processor_type"] = "GPU"
 
         return filters
 
@@ -447,14 +447,14 @@ class TestHostFilterFrameGetFilters:
         assert result == {"interfaces.speed__gte": 25}
 
     def test_gpu_checkbox(self):
-        """Test GPU checkbox sets processors.vendor__like wildcard"""
+        """Test GPU checkbox sets processors.processor_type=GPU"""
         result = self._build_filters(gpu=True)
-        assert result == {"processors.vendor__like": "%"}
+        assert result == {"processors.processor_type": "GPU"}
 
     def test_gpu_unchecked_excluded(self):
         """Test GPU unchecked is excluded"""
         result = self._build_filters(gpu=False)
-        assert "processors.vendor__like" not in result
+        assert "processors.processor_type" not in result
 
     def test_combined_filters(self):
         """Test multiple filters combined"""
@@ -472,7 +472,7 @@ class TestHostFilterFrameGetFilters:
             "disks.disk_type": "nvme",
             "disks.count__gte": 2,
             "interfaces.vendor": "Intel",
-            "processors.vendor__like": "%",
+            "processors.processor_type": "GPU",
         }
         assert result == expected
 

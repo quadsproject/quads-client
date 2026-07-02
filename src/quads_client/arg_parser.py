@@ -172,6 +172,23 @@ def parse_schedule_ssm_args(args):
             result["nic_speed"] = int(parts[i + 1])
             i += 2
         else:
+            value_keywords = [
+                "vlan",
+                "qinq",
+                "os",
+                "model",
+                "ram",
+                "disk-type",
+                "disk-size",
+                "disk-count",
+                "gpu-vendor",
+                "gpu-product",
+                "interfaces",
+                "nic-vendor",
+                "nic-speed",
+            ]
+            if parts[i] in value_keywords:
+                raise ValueError(f"'{parts[i]}' requires a value")
             i += 1
 
     if not result["description"]:

@@ -536,7 +536,7 @@ class ScheduleView(ttk.Frame):
                 preview += f"• Filter: NIC Vendor {active_filters['interfaces.vendor']}\n"
             if "interfaces.speed__gte" in active_filters:
                 preview += f"• Filter: NIC Speed >= {active_filters['interfaces.speed__gte']} Gbps\n"
-            if "processors.vendor__like" in active_filters:
+            if "processors.processor_type" in active_filters:
                 preview += "• Filter: Has GPU\n"
             if "start" in active_filters and "end" in active_filters:
                 preview += f"• Filter: Available {active_filters['start']} to {active_filters['end']}\n"

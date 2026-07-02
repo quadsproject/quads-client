@@ -401,6 +401,26 @@ def test_ls_available_nic_combined_filters(available_commands, mock_shell):
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
+def test_ls_available_filter_missing_value(available_commands, mock_shell):
+    """Test ls-available errors when filter keyword has no value"""
+    mock_shell.connection.is_connected = True
+
+    available_commands.cmd_ls_available("gpu-vendor")
+
+    mock_shell.perror.assert_called_with("Filter 'gpu-vendor' requires a value")
+    mock_shell.connection.api.filter_hosts.assert_not_called()
+
+
+def test_ls_available_filter_missing_value_mid_args(available_commands, mock_shell):
+    """Test ls-available errors when filter keyword at end has no value"""
+    mock_shell.connection.is_connected = True
+
+    available_commands.cmd_ls_available("model r640 disk-type")
+
+    mock_shell.perror.assert_called_with("Filter 'disk-type' requires a value")
+    mock_shell.connection.api.filter_hosts.assert_not_called()
+
+
 def test_ls_available_case_insensitive_model(available_commands, mock_shell):
     """Test ls-available with case-insensitive model matching"""
     mock_shell.connection.is_connected = True
