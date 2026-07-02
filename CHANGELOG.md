@@ -1,6 +1,50 @@
 # CHANGELOG
 
 
+## v0.8.7 (2026-07-02)
+
+### Bug Fixes
+
+- Add additional test coverage
+  ([`bfbe21a`](https://github.com/quadsproject/quads-client/commit/bfbe21a01215f2f2ffd3816335e946e796ac8238))
+
+- Add nic-vendor and nic-speed filters to CLI.
+  ([`71e910b`](https://github.com/quadsproject/quads-client/commit/71e910ba040b289598615df3e23c8f088faaa2ff))
+
+- Add rest of hw filters and mappings.
+  ([`1d3a44d`](https://github.com/quadsproject/quads-client/commit/1d3a44db2c165a91e76cc75c869e55fa1bd06c24))
+
+- arg_parser.py -- Added 8 new filter keywords (disk-type, disk-size, disk-count, gpu-vendor,
+  gpu-product, interfaces, nic-vendor, nic-speed) to the SSM schedule parser: result dict,
+  description terminator list, and elif parsing branches - user.py -- Added 8 filter mappings in
+  cmd_schedule() count mode, passing correct API keys to filter_available() (e.g., disks.disk_type,
+  processors.vendor, interfaces.speed__gte) - shell.py -- Added 8 new keywords to
+  complete_schedule() tab completion - gui/views/schedule.py -- Added 5 reverse-mappings in the
+  command builder so GUI advanced filters pass through to the CLI schedule command -
+  test_arg_parser.py -- 11 new tests (8 individual filters + combined + description terminator) -
+  test_commands_unified_schedule.py -- 4 new tests verifying filter_available receives correct API
+  filter dicts
+
+Assisted-by: claude
+
+- Add Tab completion for ls-available and sched.
+  ([`776837c`](https://github.com/quadsproject/quads-client/commit/776837c3d6d6bbbfa5bb66c102709d10953f9aaf))
+
+- Fix black formatting
+  ([`b50ee97`](https://github.com/quadsproject/quads-client/commit/b50ee97ef5576e204292ce76fdd0f3630fb580d1))
+
+- Has-gpu and gpu-product/vendor
+  ([`0d3c69e`](https://github.com/quadsproject/quads-client/commit/0d3c69e94bf2fa1830bfdfabeaee077482aa1f00))
+
+* We weren't correctly filtering GPU product and vendor. * Has GPU in quads-client-gui not filtering
+  correctly.
+
+### Chores
+
+- Update RPM spec version to 0.8.6
+  ([`cafafbe`](https://github.com/quadsproject/quads-client/commit/cafafbe12d29f3c63c44a77764ea0bc35c42ac1b))
+
+
 ## v0.8.6 (2026-06-27)
 
 ### Bug Fixes
