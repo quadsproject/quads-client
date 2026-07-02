@@ -165,6 +165,87 @@ class TestParseScheduleSSMArgs:
         assert result["model"] == "r640"
         assert result["vlan"] == 1150
 
+    def test_disk_type_option(self):
+        """Test disk-type option"""
+        result = parse_schedule_ssm_args('2 description "Test" disk-type nvme')
+        assert result["disk_type"] == "nvme"
+
+    def test_disk_size_option(self):
+        """Test disk-size option"""
+        result = parse_schedule_ssm_args('2 description "Test" disk-size 500')
+        assert result["disk_size"] == 500
+
+    def test_disk_count_option(self):
+        """Test disk-count option"""
+        result = parse_schedule_ssm_args('2 description "Test" disk-count 4')
+        assert result["disk_count"] == 4
+
+    def test_gpu_vendor_option(self):
+        """Test gpu-vendor option"""
+        result = parse_schedule_ssm_args('2 description "Test" gpu-vendor NVIDIA')
+        assert result["gpu_vendor"] == "NVIDIA"
+
+    def test_gpu_product_option(self):
+        """Test gpu-product option"""
+        result = parse_schedule_ssm_args('2 description "Test" gpu-product "Tesla V100"')
+        assert result["gpu_product"] == "Tesla V100"
+
+    def test_interfaces_option(self):
+        """Test interfaces option"""
+        result = parse_schedule_ssm_args('2 description "Test" interfaces 4')
+        assert result["interfaces"] == 4
+
+    def test_nic_vendor_option(self):
+        """Test nic-vendor option"""
+        result = parse_schedule_ssm_args('2 description "Test" nic-vendor Mellanox')
+        assert result["nic_vendor"] == "Mellanox"
+
+    def test_nic_speed_option(self):
+        """Test nic-speed option"""
+        result = parse_schedule_ssm_args('2 description "Test" nic-speed 25')
+        assert result["nic_speed"] == 25
+
+    def test_all_hardware_filters_combined(self):
+        """Test all hardware metadata filters together"""
+        result = parse_schedule_ssm_args(
+            '3 description "Full HW test" model r640 ram 128 '
+            "disk-type nvme disk-size 500 disk-count 4 "
+            "gpu-vendor NVIDIA interfaces 4 "
+            "nic-vendor Mellanox nic-speed 25"
+        )
+        assert result["count"] == 3
+        assert result["description"] == "Full HW test"
+        assert result["model"] == "r640"
+        assert result["ram"] == 128
+        assert result["disk_type"] == "nvme"
+        assert result["disk_size"] == 500
+        assert result["disk_count"] == 4
+        assert result["gpu_vendor"] == "NVIDIA"
+        assert result["interfaces"] == 4
+        assert result["nic_vendor"] == "Mellanox"
+        assert result["nic_speed"] == 25
+
+    def test_description_terminates_at_hardware_filter(self):
+        """Test that multi-word description stops at hardware filter keywords"""
+        result = parse_schedule_ssm_args("2 description GPU performance testing gpu-vendor NVIDIA")
+        assert result["description"] == "GPU performance testing"
+        assert result["gpu_vendor"] == "NVIDIA"
+
+    def test_filter_missing_value_raises(self):
+        """Test that filter keyword without value raises ValueError"""
+        with pytest.raises(ValueError, match="'gpu-vendor' requires a value"):
+            parse_schedule_ssm_args('2 description "Test" gpu-vendor')
+
+    def test_filter_missing_value_model(self):
+        """Test that model keyword without value raises ValueError"""
+        with pytest.raises(ValueError, match="'model' requires a value"):
+            parse_schedule_ssm_args('2 description "Test" model')
+
+    def test_filter_missing_value_disk_type(self):
+        """Test that disk-type keyword without value raises ValueError"""
+        with pytest.raises(ValueError, match="'disk-type' requires a value"):
+            parse_schedule_ssm_args('2 description "Test" disk-type')
+
 
 class TestParseScheduleAdminArgs:
     """Test parse_schedule_admin_args function"""

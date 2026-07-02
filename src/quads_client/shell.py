@@ -391,6 +391,14 @@ class QuadsClientShell(cmd2.Cmd):
             "model",
             "ram",
             "host-list",
+            "disk-type",
+            "disk-size",
+            "disk-count",
+            "gpu-vendor",
+            "gpu-product",
+            "interfaces",
+            "nic-vendor",
+            "nic-speed",
         ]
 
         # For admin mode, try to get cloud names
@@ -809,6 +817,26 @@ class QuadsClientShell(cmd2.Cmd):
     def do_shrink(self, args):
         """Shrink a schedule"""
         self.schedule_commands.cmd_shrink(args)
+
+    def complete_ls_available(self, text, line, begidx, endidx):
+        """Autocomplete for ls_available command - filter keywords"""
+        keywords = [
+            "start",
+            "end",
+            "model",
+            "ram",
+            "gpu-vendor",
+            "gpu-product",
+            "disk-size",
+            "disk-type",
+            "disk-count",
+            "interfaces",
+            "nic-vendor",
+            "nic-speed",
+        ]
+        if text:
+            return [k for k in keywords if k.startswith(text)]
+        return keywords
 
     def do_ls_available(self, args):
         """List available hosts"""

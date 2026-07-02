@@ -16,7 +16,7 @@ class AvailableCommands:
         Usage: ls-available [start YYYY-MM-DD] [end YYYY-MM-DD] [model MODEL] [ram GB]
                             [gpu-vendor VENDOR] [gpu-product PRODUCT]
                             [disk-size GB] [disk-type TYPE] [disk-count N]
-                            [interfaces N]
+                            [interfaces N] [nic-vendor VENDOR] [nic-speed GBPS]
         """
         if not self._require_connection():
             return
@@ -36,9 +36,12 @@ class AvailableCommands:
             self.shell.poutput("  disk-type TYPE          Disk type (nvme, ssd, sata)")
             self.shell.poutput("  disk-count N            Minimum number of disks")
             self.shell.poutput("  interfaces N            Minimum number of network interfaces")
+            self.shell.poutput("  nic-vendor VENDOR       NIC vendor (e.g., 'Intel', 'Mellanox')")
+            self.shell.poutput("  nic-speed GBPS          Minimum NIC speed in Gbps")
             self.shell.poutput("\nExamples:")
             self.shell.poutput("  ls-available model r640 ram 256")
             self.shell.poutput("  ls-available gpu-vendor 'NVIDIA Corporation' gpu-product 'Tesla V100'")
+            self.shell.poutput("  ls-available nic-vendor Mellanox nic-speed 25")
             self.shell.poutput("  ls-available start 2026-06-01 end 2026-06-15")
             return
 
@@ -78,7 +81,30 @@ class AvailableCommands:
             elif parts[i] == "interfaces" and i + 1 < len(parts):
                 filters["interfaces.count__gte"] = int(parts[i + 1])
                 i += 2
+            elif parts[i] == "nic-vendor" and i + 1 < len(parts):
+                filters["interfaces.vendor"] = parts[i + 1]
+                i += 2
+            elif parts[i] == "nic-speed" and i + 1 < len(parts):
+                filters["interfaces.speed__gte"] = int(parts[i + 1])
+                i += 2
             else:
+                known_keywords = [
+                    "start",
+                    "end",
+                    "model",
+                    "ram",
+                    "gpu-vendor",
+                    "gpu-product",
+                    "disk-size",
+                    "disk-type",
+                    "disk-count",
+                    "interfaces",
+                    "nic-vendor",
+                    "nic-speed",
+                ]
+                if parts[i] in known_keywords:
+                    self.shell.perror(f"Filter '{parts[i]}' requires a value")
+                    return
                 i += 1
 
         try:

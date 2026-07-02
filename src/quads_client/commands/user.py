@@ -638,6 +638,22 @@ class UserCommands:
                     filters["model"] = parsed["model"]
                 if parsed["ram"]:
                     filters["memory__gte"] = parsed["ram"] * 1024
+                if parsed["disk_type"]:
+                    filters["disks.disk_type"] = parsed["disk_type"]
+                if parsed["disk_size"]:
+                    filters["disks.size_gb__gte"] = parsed["disk_size"]
+                if parsed["disk_count"]:
+                    filters["disks.count__gte"] = parsed["disk_count"]
+                if parsed["gpu_vendor"]:
+                    filters["processors.vendor"] = parsed["gpu_vendor"]
+                if parsed["gpu_product"]:
+                    filters["processors.product"] = parsed["gpu_product"]
+                if parsed["interfaces"]:
+                    filters["interfaces.count__gte"] = parsed["interfaces"]
+                if parsed["nic_vendor"]:
+                    filters["interfaces.vendor"] = parsed["nic_vendor"]
+                if parsed["nic_speed"]:
+                    filters["interfaces.speed__gte"] = parsed["nic_speed"]
 
                 available = auto_refresh_on_auth_error(self.shell, self.shell.connection.api.filter_available, filters)
 
@@ -648,8 +664,23 @@ class UserCommands:
                 if not available or len(available) == 0:
                     self.shell.perror("No available hosts found for self-scheduling")
                     self.shell.perror("Hint: Contact admin to configure hosts with can_self_schedule flag")
-                    if parsed["model"] or parsed["ram"]:
-                        self.shell.perror("Or try removing model/ram filters")
+                    has_filters = any(
+                        parsed[k]
+                        for k in [
+                            "model",
+                            "ram",
+                            "disk_type",
+                            "disk_size",
+                            "disk_count",
+                            "gpu_vendor",
+                            "gpu_product",
+                            "interfaces",
+                            "nic_vendor",
+                            "nic_speed",
+                        ]
+                    )
+                    if has_filters:
+                        self.shell.perror("Or try removing hardware filters")
                     return
 
                 if len(available) < parsed["count"]:

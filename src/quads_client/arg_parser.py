@@ -54,7 +54,9 @@ def parse_schedule_ssm_args(args):
         args: Command arguments string
 
     Returns:
-        dict with keys: count, host_list, description, wipe, vlan, qinq, model, ram
+        dict with keys: count, host_list, description, wipe, vlan, qinq, model, ram,
+        disk_type, disk_size, disk_count, gpu_vendor, gpu_product, interfaces,
+        nic_vendor, nic_speed
 
     Raises:
         ValueError: If arguments are invalid
@@ -73,6 +75,14 @@ def parse_schedule_ssm_args(args):
         "os": None,
         "model": None,
         "ram": None,
+        "disk_type": None,
+        "disk_size": None,
+        "disk_count": None,
+        "gpu_vendor": None,
+        "gpu_product": None,
+        "interfaces": None,
+        "nic_vendor": None,
+        "nic_speed": None,
     }
 
     # Parse first positional argument (count/hosts/host-list)
@@ -100,7 +110,22 @@ def parse_schedule_ssm_args(args):
             # Collect description until next keyword
             desc_parts = []
             i += 1
-            while i < len(parts) and parts[i] not in ["nowipe", "vlan", "qinq", "os", "model", "ram"]:
+            while i < len(parts) and parts[i] not in [
+                "nowipe",
+                "vlan",
+                "qinq",
+                "os",
+                "model",
+                "ram",
+                "disk-type",
+                "disk-size",
+                "disk-count",
+                "gpu-vendor",
+                "gpu-product",
+                "interfaces",
+                "nic-vendor",
+                "nic-speed",
+            ]:
                 desc_parts.append(parts[i])
                 i += 1
             result["description"] = " ".join(desc_parts)
@@ -122,7 +147,48 @@ def parse_schedule_ssm_args(args):
         elif parts[i] == "ram" and i + 1 < len(parts):
             result["ram"] = int(parts[i + 1])
             i += 2
+        elif parts[i] == "disk-type" and i + 1 < len(parts):
+            result["disk_type"] = parts[i + 1]
+            i += 2
+        elif parts[i] == "disk-size" and i + 1 < len(parts):
+            result["disk_size"] = int(parts[i + 1])
+            i += 2
+        elif parts[i] == "disk-count" and i + 1 < len(parts):
+            result["disk_count"] = int(parts[i + 1])
+            i += 2
+        elif parts[i] == "gpu-vendor" and i + 1 < len(parts):
+            result["gpu_vendor"] = parts[i + 1]
+            i += 2
+        elif parts[i] == "gpu-product" and i + 1 < len(parts):
+            result["gpu_product"] = parts[i + 1]
+            i += 2
+        elif parts[i] == "interfaces" and i + 1 < len(parts):
+            result["interfaces"] = int(parts[i + 1])
+            i += 2
+        elif parts[i] == "nic-vendor" and i + 1 < len(parts):
+            result["nic_vendor"] = parts[i + 1]
+            i += 2
+        elif parts[i] == "nic-speed" and i + 1 < len(parts):
+            result["nic_speed"] = int(parts[i + 1])
+            i += 2
         else:
+            value_keywords = [
+                "vlan",
+                "qinq",
+                "os",
+                "model",
+                "ram",
+                "disk-type",
+                "disk-size",
+                "disk-count",
+                "gpu-vendor",
+                "gpu-product",
+                "interfaces",
+                "nic-vendor",
+                "nic-speed",
+            ]
+            if parts[i] in value_keywords:
+                raise ValueError(f"'{parts[i]}' requires a value")
             i += 1
 
     if not result["description"]:
