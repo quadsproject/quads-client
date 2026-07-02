@@ -667,8 +667,16 @@ class UserCommands:
                     has_filters = any(
                         parsed[k]
                         for k in [
-                            "model", "ram", "disk_type", "disk_size", "disk_count",
-                            "gpu_vendor", "gpu_product", "interfaces", "nic_vendor", "nic_speed",
+                            "model",
+                            "ram",
+                            "disk_type",
+                            "disk_size",
+                            "disk_count",
+                            "gpu_vendor",
+                            "gpu_product",
+                            "interfaces",
+                            "nic_vendor",
+                            "nic_speed",
                         ]
                     )
                     if has_filters:

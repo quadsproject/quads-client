@@ -111,10 +111,20 @@ def parse_schedule_ssm_args(args):
             desc_parts = []
             i += 1
             while i < len(parts) and parts[i] not in [
-                "nowipe", "vlan", "qinq", "os", "model", "ram",
-                "disk-type", "disk-size", "disk-count",
-                "gpu-vendor", "gpu-product", "interfaces",
-                "nic-vendor", "nic-speed",
+                "nowipe",
+                "vlan",
+                "qinq",
+                "os",
+                "model",
+                "ram",
+                "disk-type",
+                "disk-size",
+                "disk-count",
+                "gpu-vendor",
+                "gpu-product",
+                "interfaces",
+                "nic-vendor",
+                "nic-speed",
             ]:
                 desc_parts.append(parts[i])
                 i += 1
