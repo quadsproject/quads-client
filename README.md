@@ -1077,6 +1077,9 @@ activity
 > [!TIP]
 > The prompt shows a `⚡` indicator when moves are active. The GUI "Move Progress" view provides the same data with an auto-refresh toggle for hands-free monitoring.
 
+> [!TIP]
+> `track`, `move_status`, and `activity` show all active moves across all clouds, not just your own. Any authenticated user can use them. To see only your own hosts, use `my_hosts` instead.
+
 ### Other Commands
 
 ```
@@ -1117,9 +1120,13 @@ Two authentication methods are supported:
 SSM users can:
 - **Schedule** hosts with unified `schedule` command (count/hosts/host-list syntax)
 - **View** their own resources with `my_assignments` and `my_hosts` (ownership enforced)
+- **Track** any active move with `track`, `move_status`, and `activity` (global visibility)
 - **Terminate** assignments when done with `terminate` (own assignments only)
 - **Duration**: Server-controlled (5 days or Sunday 21:00 UTC, whichever first)
 - **Limits**: Max 10 hosts per assignment, max 3 active assignments per user
+
+> [!TIP]
+> `my_hosts` and `my_assignments` only show clouds where you are the **owner**. If you are a CC-user on an admin-scheduled cloud, use `track <cloudname>` or the GUI Move Progress view to follow its provisioning status.
 
 Command visibility:
 - SSM users see only allowed commands (no `extend`, no admin commands); `edit_server` is always visible since it modifies local config only
