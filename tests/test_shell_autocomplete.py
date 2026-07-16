@@ -3,6 +3,13 @@ from unittest.mock import MagicMock, patch
 from quads_client.shell import QuadsClientShell
 
 
+def _to_list(completions):
+    """Convert cmd2 Completions to a plain list of strings for assertions."""
+    if hasattr(completions, "to_strings"):
+        return list(completions.to_strings())
+    return list(completions)
+
+
 def test_complete_connect_all_servers():
     """Test autocomplete for connect command shows all servers"""
     with patch("quads_client.shell.QuadsClientConfig"):
@@ -15,7 +22,7 @@ def test_complete_connect_all_servers():
 
             completions = shell.complete_connect("", "connect ", 8, 8)
 
-            assert completions == ["server1", "server2", "server3"]
+            assert _to_list(completions) == ["server1", "server2", "server3"]
 
 
 def test_complete_connect_filtered():
@@ -30,7 +37,7 @@ def test_complete_connect_filtered():
 
             completions = shell.complete_connect("ser", "connect ser", 8, 11)
 
-            assert completions == ["server1", "server2"]
+            assert _to_list(completions) == ["server1", "server2"]
 
 
 def test_complete_connect_no_connection_with_config():
@@ -47,7 +54,7 @@ def test_complete_connect_no_connection_with_config():
 
             completions = shell.complete_connect("", "connect ", 8, 8)
 
-            assert sorted(completions) == ["server1", "server2"]
+            assert sorted(_to_list(completions)) == ["server1", "server2"]
 
 
 def test_complete_connect_no_connection_no_config():
@@ -61,7 +68,7 @@ def test_complete_connect_no_connection_no_config():
 
             completions = shell.complete_connect("", "connect ", 8, 8)
 
-            assert completions == []
+            assert _to_list(completions) == []
 
 
 def test_complete_connect_no_connection_filtered():
@@ -76,7 +83,7 @@ def test_complete_connect_no_connection_filtered():
 
             completions = shell.complete_connect("ser", "connect ser", 8, 11)
 
-            assert sorted(completions) == ["server1", "server2"]
+            assert sorted(_to_list(completions)) == ["server1", "server2"]
 
 
 def test_complete_connect_exact_match():
@@ -107,7 +114,7 @@ def test_complete_connect_no_match():
 
             completions = shell.complete_connect("xyz", "connect xyz", 8, 11)
 
-            assert completions == []
+            assert _to_list(completions) == []
 
 
 def test_complete_ls_available_all_keywords():
@@ -154,4 +161,4 @@ def test_complete_ls_available_no_match():
 
             completions = shell.complete_ls_available("xyz", "ls_available xyz", 13, 16)
 
-            assert completions == []
+            assert _to_list(completions) == []
