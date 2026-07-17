@@ -168,7 +168,7 @@ def test_shell_update_visible_commands_admin():
 
 
 def test_shell_update_prompt_admin_badge():
-    """Test prompt includes [ADMIN] badge for admin users with readline wrapping"""
+    """Test prompt includes [ADMIN] badge for admin users"""
     with patch("quads_client.shell.QuadsClientConfig"):
         with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
@@ -183,9 +183,6 @@ def test_shell_update_prompt_admin_badge():
 
             shell._update_prompt()
             assert "[ADMIN]" in shell.prompt
-            # Verify readline wrapping markers are present
-            assert "\001" in shell.prompt
-            assert "\002" in shell.prompt
 
 
 def test_shell_update_prompt_no_admin_badge():
@@ -206,12 +203,15 @@ def test_shell_update_prompt_no_admin_badge():
             assert "[ADMIN]" not in shell.prompt
 
 
-def test_rl_wraps_ansi_for_readline():
-    """Test _rl helper wraps ANSI codes with readline non-printing markers"""
-    from quads_client.shell import _rl
-
-    result = _rl("\033[1;31m")
-    assert result == "\001\033[1;31m\002"
+def test_prompt_uses_raw_ansi_codes():
+    """Prompt must use raw ANSI codes so cmd2's rl_escape_prompt handles wrapping"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+            shell._update_prompt()
+            assert "\033[" in shell.prompt
+            assert "\001" not in shell.prompt
+            assert "\002" not in shell.prompt
 
 
 def test_shell_preloop_binds_readline():

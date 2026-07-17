@@ -3,6 +3,7 @@ import shlex
 from tabulate import tabulate
 
 from quads_client.error_handler import require_connection
+from quads_client.utils import resolve_os
 
 
 class CloudCommands:
@@ -191,7 +192,7 @@ class CloudCommands:
         if not self._require_connection():
             return
 
-        if not args.strip():
+        if not args.strip() or args.strip() in ("?", "-h", "--help"):
             self.shell.perror("Usage: cloud-create <name>")
             return
 
@@ -342,7 +343,11 @@ class CloudCommands:
                     return
                 i += 2
             elif parts[i] == "os" and i + 1 < len(parts):
-                updates["ostype"] = parts[i + 1]
+                resolved_os, os_error = resolve_os(self.shell.connection.api, parts[i + 1])
+                if os_error:
+                    self.shell.perror(os_error)
+                    return
+                updates["ostype"] = resolved_os
                 i += 2
             elif parts[i] == "wipe":
                 updates["wipe"] = True
@@ -456,7 +461,7 @@ class CloudCommands:
 
         cloud_name = args.strip()
 
-        if not cloud_name:
+        if not cloud_name or cloud_name in ("?", "-h", "--help"):
             self.shell.perror("Usage: cloud_only <cloud_name>")
             return
 

@@ -20,11 +20,6 @@ from quads_client.session_manager import SessionManager
 from quads_client.utils import get_ssl_indicator
 
 
-def _rl(ansi):
-    """Wrap ANSI escape code for readline (mark as non-printing)"""
-    return f"\001{ansi}\002"
-
-
 class QuadsClientShell(cmd2.Cmd):
     intro = ""  # We'll use rich console for the banner
 
@@ -120,7 +115,7 @@ class QuadsClientShell(cmd2.Cmd):
         try:
             moves = self.connection.api.get_all_move_status()
             if moves:
-                self._cached_activity_indicator = f"{_rl(chr(27) + '[1;33m')}⚡{_rl(chr(27) + '[0m')}"
+                self._cached_activity_indicator = "\033[1;33m⚡\033[0m"
             else:
                 self._cached_activity_indicator = ""
         except Exception:
@@ -165,15 +160,13 @@ class QuadsClientShell(cmd2.Cmd):
 
             admin_badge = ""
             if self.connection and self.connection.is_admin:
-                admin_badge = f" {_rl(chr(27) + '[1;31m')}[ADMIN]{_rl(chr(27) + '[0m')}"
+                admin_badge = " \033[1;31m[ADMIN]\033[0m"
 
             activity = self._get_activity_indicator()
 
-            self.prompt = (
-                f"{_rl(color)}{symbol} {session_info}({short_name}){activity}{admin_badge}{_rl(chr(27) + '[0m')} > "
-            )
+            self.prompt = f"{color}{symbol} {session_info}({short_name}){activity}{admin_badge}\033[0m > "
         else:
-            self.prompt = f"{_rl(chr(27) + '[1;31m')}(disconnected){_rl(chr(27) + '[0m')} > "
+            self.prompt = "\033[1;31m(disconnected)\033[0m > "
 
     def _get_session_indicators(self) -> str:
         """Generate session indicator string like '[1:dev* 2:prod]'"""
@@ -203,7 +196,6 @@ class QuadsClientShell(cmd2.Cmd):
             "cloud_delete",
             "mod_cloud",
             "find_free_cloud",
-            "cloud_only",
             "ls_vlan",
             "ls_hosts",
             "mark_broken",
@@ -238,6 +230,7 @@ class QuadsClientShell(cmd2.Cmd):
             "my_assignments",
             "terminate",
             "cloud_list",
+            "cloud_only",
             "ls_available",
             "os_list",
             "move_status",
@@ -282,7 +275,7 @@ class QuadsClientShell(cmd2.Cmd):
             print("No connection")
 
     def do_connect(self, args):
-        """Connect to a QUADS server. Usage: connect [server_name]"""
+        """Connect to a QUADS server. Usage: connect [server_name|number] [session <label>]"""
         self.connection_commands.cmd_connect(args)
 
     def complete_connect(self, text, line, begidx, endidx):
@@ -292,9 +285,7 @@ class QuadsClientShell(cmd2.Cmd):
             servers = self.connection.get_available_servers()
         elif self.config:
             servers = list(self.config.get_all_servers().keys())
-        if text:
-            return [s for s in servers if s.startswith(text)]
-        return servers
+        return self.basic_complete(text, line, begidx, endidx, servers)
 
     def do_disconnect(self, args):
         """Disconnect from current QUADS server"""
@@ -305,7 +296,7 @@ class QuadsClientShell(cmd2.Cmd):
         self.connection_commands.cmd_status(args)
 
     def do_cloud_list(self, args):
-        """List all clouds (admin only)"""
+        """List all clouds"""
         self.cloud_commands.cmd_cloud_list(args)
 
     def do_find_free_cloud(self, args):
@@ -313,7 +304,7 @@ class QuadsClientShell(cmd2.Cmd):
         self.cloud_commands.cmd_find_free_cloud(args)
 
     def do_cloud_only(self, args):
-        """List hosts assigned to a specific cloud (admin only)"""
+        """List hosts assigned to a specific cloud"""
         self.cloud_commands.cmd_cloud_only(args)
 
     def do_ls_vlan(self, args):
@@ -364,17 +355,66 @@ class QuadsClientShell(cmd2.Cmd):
         """Terminate an assignment (deprecated, use terminate)"""
         self.user_commands.cmd_terminate(args)
 
+    def help_schedule(self):
+        """Role-aware help for the schedule command"""
+        if self.connection and self.connection.is_admin:
+            self.poutput("Usage: schedule <cloud> <hosts|host-list path> <start> <end> [options]")
+            self.poutput("\nSchedule hosts to a cloud (admin mode).")
+            self.poutput("\nOptions:")
+            self.poutput("  description <text>       Assignment description")
+            self.poutput("  cloud-owner <username>   Cloud owner username")
+            self.poutput("  cloud-ticket <ticket_id> Ticket ID (JIRA, etc.)")
+            self.poutput("  cc-users <user1,user2>   Comma-separated CC users")
+            self.poutput("  vlan <vlan_id>           VLAN ID number")
+            self.poutput("  qinq <0|1>              QinQ setting (0=disabled, 1=enabled)")
+            self.poutput("  os <title>               OS for provisioning (see os-list)")
+            self.poutput("  nowipe                   Disable host wiping")
+            self.poutput("\nExamples:")
+            self.poutput('  schedule cloud02 host01,host02 "2026-08-01 22:00" "2026-08-15 22:00"')
+            self.poutput('  schedule cloud03 host-list ~/hosts.txt "2026-08-01 22:00" "2026-08-15 22:00"')
+            self.poutput('  schedule cloud02 host01 "2026-08-01 22:00" "2026-08-15 22:00" description "CI env"')
+        else:
+            self.poutput("Usage: schedule <count|hostname[,hostname...]|host-list path> description <desc> [options]")
+            self.poutput("\nRequest a host assignment (SSM mode).")
+            self.poutput("\nOptions:")
+            self.poutput("  description <text>       Assignment description (required)")
+            self.poutput("  nowipe                   Disable host wiping")
+            self.poutput("  vlan <vlan_id>           VLAN ID number")
+            self.poutput("  qinq <0|1>              QinQ setting (0=disabled, 1=enabled)")
+            self.poutput("  os <title>               OS for provisioning (see os-list)")
+            self.poutput("  model <name>             Filter by server model (e.g., r640)")
+            self.poutput("  ram <GB>                 Minimum RAM in GB")
+            self.poutput("  disk-type <type>         Disk type (nvme, ssd, sata)")
+            self.poutput("  disk-size <GB>           Minimum disk size in GB")
+            self.poutput("  disk-count <N>           Minimum number of disks")
+            self.poutput("  gpu-vendor <vendor>      GPU vendor (e.g., 'NVIDIA Corporation')")
+            self.poutput("  gpu-product <product>    GPU model (e.g., 'Tesla V100')")
+            self.poutput("  interfaces <N>           Minimum number of network interfaces")
+            self.poutput("  nic-vendor <vendor>      NIC vendor (e.g., 'Intel', 'Mellanox')")
+            self.poutput("  nic-speed <Gbps>         Minimum NIC speed in Gbps")
+            self.poutput("\nExamples:")
+            self.poutput('  schedule 3 description "Dev testing"')
+            self.poutput('  schedule host01,host02 description "CI" model r640 ram 256')
+            self.poutput('  schedule host-list ~/hosts.txt description "Batch"')
+
     def do_schedule(self, args):
-        """
-        Unified schedule command (role-aware)
-        SSM mode: schedule <count|hosts|host-list path> description <desc> [options]
-        Admin mode: schedule <cloud> <hosts|host-list path> <start> <end>
-        """
-        # Route to appropriate handler based on role
+        """Schedule hosts (use 'help schedule' for full options)"""
+        if args.strip() in ("?", "-h", "--help"):
+            self.help_schedule()
+            return
         if self.connection and self.connection.is_admin:
             self.schedule_commands.cmd_schedule_admin(args)
         else:
             self.user_commands.cmd_schedule(args)
+
+    def _filter_completions(self, candidates, text, line, begidx, endidx):
+        return self.basic_complete(text, line, begidx, endidx, candidates)
+
+    def _get_arg_position(self, parts, text):
+        """Return the 1-based argument position being completed."""
+        if text:
+            return len(parts) - 1
+        return len(parts)
 
     def complete_schedule(self, text, line, begidx, endidx):
         """Autocomplete for schedule command"""
@@ -382,7 +422,87 @@ class QuadsClientShell(cmd2.Cmd):
             return []
 
         parts = line.split()
-        keywords = [
+
+        if self.connection.is_admin:
+            return self._complete_schedule_admin(text, line, parts, begidx, endidx)
+
+        return self._complete_schedule_ssm(text, line, parts, begidx, endidx)
+
+    def _complete_schedule_admin(self, text, line, parts, begidx, endidx):
+        """Position-aware completion for admin schedule.
+
+        Syntax: schedule <cloud> <hosts|host-list> [path] <start> <end> [options]
+        """
+        admin_keywords = [
+            "description",
+            "cloud-owner",
+            "cc-users",
+            "cloud-ticket",
+            "vlan",
+            "qinq",
+            "os",
+            "nowipe",
+        ]
+        value_keywords = [
+            "description",
+            "cloud-owner",
+            "cc-users",
+            "cloud-ticket",
+            "vlan",
+            "qinq",
+            "os",
+        ]
+
+        pos = self._get_arg_position(parts, text)
+
+        try:
+            if pos == 1:
+                clouds = self.connection.api.get_clouds()
+                cloud_names = [c.get("name") for c in clouds if c.get("name")]
+                return self._filter_completions(cloud_names, text, line, begidx, endidx)
+
+            if pos == 2:
+                hosts = self.connection.api.get_hosts()
+                hostnames = [h.get("name") for h in hosts]
+                candidates = ["host-list"] + hostnames
+                return self._filter_completions(candidates, text, line, begidx, endidx)
+
+            prev_word = parts[-2] if text else parts[-1]
+
+            if prev_word == "host-list":
+                return self.path_complete(text, line, begidx, endidx)
+
+            has_host_list = "host-list" in parts
+            date_start = 4 if has_host_list else 3
+            options_start = date_start + 2
+
+            if pos < options_start:
+                return []
+
+            if prev_word == "os":
+                os_list = self.connection.api.get_os_list()
+                os_names = [o.get("Title") for o in os_list if o.get("Title")]
+                return self._filter_completions(os_names, text, line, begidx, endidx)
+
+            if prev_word == "vlan":
+                vlans = self.connection.api.get_free_vlans()
+                vlan_ids = [str(v.get("vlan_id")) for v in vlans if v.get("vlan_id")]
+                return self._filter_completions(vlan_ids, text, line, begidx, endidx)
+
+            if prev_word in value_keywords:
+                return []
+
+            return self._filter_completions(admin_keywords, text, line, begidx, endidx)
+        except Exception:
+            pass
+        return self.basic_complete(text, line, begidx, endidx, admin_keywords)
+
+    def _complete_schedule_ssm(self, text, line, parts, begidx, endidx):
+        """Position-aware completion for SSM schedule.
+
+        Syntax: schedule <count|hostname[,hostname]|host-list path> description <desc> [options]
+        """
+        ssm_keywords = [
             "description",
             "nowipe",
             "vlan",
@@ -390,7 +510,6 @@ class QuadsClientShell(cmd2.Cmd):
             "os",
             "model",
             "ram",
-            "host-list",
             "disk-type",
             "disk-size",
             "disk-count",
@@ -401,48 +520,55 @@ class QuadsClientShell(cmd2.Cmd):
             "nic-speed",
         ]
 
-        # For admin mode, try to get cloud names
-        if self.connection.is_admin:
-            try:
-                # First arg: cloud names
-                if len(parts) <= 2:
-                    clouds = self.connection.api.get_clouds()
-                    cloud_names = [c.get("name") for c in clouds if c.get("name")]
-                    if text:
-                        return [c for c in cloud_names if c.startswith(text)]
-                    return cloud_names
-                # Later args: hostnames or keywords
-                else:
-                    hosts = self.connection.api.get_hosts()
-                    hostnames = [h.get("name") for h in hosts]
-                    candidates = keywords + hostnames
-                    if text:
-                        return [c for c in candidates if c.startswith(text)]
-                    return candidates
-            except Exception:
-                pass
+        pos = self._get_arg_position(parts, text)
 
-        # SSM mode
         try:
-            # First arg: available hostnames (can_self_schedule) or count suggestions
-            if len(parts) <= 2:
+            if pos == 1:
                 hosts = self.connection.api.filter_hosts({"can_self_schedule": True})
                 hostnames = [h.get("name") for h in hosts]
-                # Also suggest common counts
                 count_suggestions = ["1", "2", "3", "5", "10"]
-                candidates = hostnames + count_suggestions
-                if text:
-                    return [c for c in candidates if c.startswith(text)]
-                return candidates
-            # After first arg (count/hosts/host-list): only keywords
-            else:
-                if text:
-                    return [k for k in keywords if k.startswith(text)]
-                return keywords
+                candidates = ["host-list"] + hostnames + count_suggestions
+                return self._filter_completions(candidates, text, line, begidx, endidx)
+
+            prev_word = parts[-2] if text else parts[-1]
+
+            if prev_word == "host-list":
+                return self.path_complete(text, line, begidx, endidx)
+
+            if prev_word == "os":
+                os_list = self.connection.api.get_os_list()
+                os_names = [o.get("Title") for o in os_list if o.get("Title")]
+                return self._filter_completions(os_names, text, line, begidx, endidx)
+
+            if prev_word == "vlan":
+                vlans = self.connection.api.get_free_vlans()
+                vlan_ids = [str(v.get("vlan_id")) for v in vlans if v.get("vlan_id")]
+                return self._filter_completions(vlan_ids, text, line, begidx, endidx)
+
+            ssm_value_keywords = [
+                "description",
+                "vlan",
+                "qinq",
+                "os",
+                "model",
+                "ram",
+                "disk-type",
+                "disk-size",
+                "disk-count",
+                "gpu-vendor",
+                "gpu-product",
+                "interfaces",
+                "nic-vendor",
+                "nic-speed",
+            ]
+            if prev_word in ssm_value_keywords:
+                return []
+
+            return self._filter_completions(ssm_keywords, text, line, begidx, endidx)
         except Exception:
             pass
 
-        return keywords
+        return self.basic_complete(text, line, begidx, endidx, ssm_keywords)
 
     def complete_terminate(self, text, line, begidx, endidx):
         """Autocomplete for terminate command - assignment IDs and hostnames"""
@@ -455,19 +581,18 @@ class QuadsClientShell(cmd2.Cmd):
             if len(parts) <= 2:
                 username = self.connection.username.split("@")[0]
                 assignments = self.connection.api.filter_assignments({"owner": username, "active": True})
-                ids = [str(a.get("id", "")) for a in assignments]
-                if text:
-                    return [i for i in ids if i.startswith(text)]
-                return ids
+                ids = sorted(
+                    [str(a.get("id", "")) for a in assignments],
+                    key=lambda x: int(x) if x.isdigit() else float("inf"),
+                )
+                return self.basic_complete(text, line, begidx, endidx, ids)
 
             # If assignment ID provided, suggest hostnames from that assignment
             if len(parts) >= 2:
                 assignment_id = parts[1]
                 schedules = self.connection.api.get_schedules({"assignment": assignment_id})
                 hostnames = [s.get("host", {}).get("name", "") for s in schedules]
-                if text:
-                    return [h for h in hostnames if h.startswith(text)]
-                return hostnames
+                return self.basic_complete(text, line, begidx, endidx, hostnames)
         except Exception:
             pass
         return []
@@ -487,16 +612,12 @@ class QuadsClientShell(cmd2.Cmd):
                 schedules = self.connection.api.get_current_schedules({})
                 hostnames = list(set(s.get("host", {}).get("name", "") for s in schedules))
                 candidates = cloud_names + hostnames
-                if text:
-                    return [c for c in candidates if c.startswith(text)]
-                return candidates
+                return self.basic_complete(text, line, begidx, endidx, candidates)
 
             # Second arg: "weeks" or "date"
             if len(parts) == 3:
                 keywords = ["weeks", "date"]
-                if text:
-                    return [k for k in keywords if k.startswith(text)]
-                return keywords
+                return self.basic_complete(text, line, begidx, endidx, keywords)
         except Exception:
             pass
         return []
@@ -514,15 +635,11 @@ class QuadsClientShell(cmd2.Cmd):
                 schedules = self.connection.api.get_current_schedules({})
                 hostnames = list(set(s.get("host", {}).get("name", "") for s in schedules))
                 candidates = cloud_names + hostnames
-                if text:
-                    return [c for c in candidates if c.startswith(text)]
-                return candidates
+                return self.basic_complete(text, line, begidx, endidx, candidates)
 
             if len(parts) == 3:
                 keywords = ["weeks", "days", "now", "date"]
-                if text:
-                    return [k for k in keywords if k.startswith(text)]
-                return keywords
+                return self.basic_complete(text, line, begidx, endidx, keywords)
         except Exception:
             pass
         return []
@@ -535,9 +652,7 @@ class QuadsClientShell(cmd2.Cmd):
         try:
             clouds = self.connection.api.get_clouds()
             cloud_names = [c.get("name") for c in clouds]
-            if text:
-                return [c for c in cloud_names if c.startswith(text)]
-            return cloud_names
+            return self.basic_complete(text, line, begidx, endidx, cloud_names)
         except Exception:
             pass
         return []
@@ -553,9 +668,7 @@ class QuadsClientShell(cmd2.Cmd):
             if len(parts) <= 2:
                 clouds = self.connection.api.get_clouds()
                 cloud_names = [c.get("name") for c in clouds]
-                if text:
-                    return [c for c in cloud_names if c.startswith(text)]
-                return cloud_names
+                return self.basic_complete(text, line, begidx, endidx, cloud_names)
 
             # Subsequent args: attributes
             keywords = [
@@ -565,12 +678,11 @@ class QuadsClientShell(cmd2.Cmd):
                 "cc-users",
                 "vlan",
                 "qinq",
+                "os",
                 "wipe",
                 "nowipe",
             ]
-            if text:
-                return [k for k in keywords if k.startswith(text)]
-            return keywords
+            return self.basic_complete(text, line, begidx, endidx, keywords)
         except Exception:
             pass
         return []
@@ -588,14 +700,10 @@ class QuadsClientShell(cmd2.Cmd):
             if len(parts) > 1 and parts[-2] == "cloud":
                 clouds = self.connection.api.get_clouds()
                 cloud_names = [c.get("name") for c in clouds]
-                if text:
-                    return [c for c in cloud_names if c.startswith(text)]
-                return cloud_names
+                return self.basic_complete(text, line, begidx, endidx, cloud_names)
 
             # Otherwise suggest keywords
-            if text:
-                return [k for k in keywords if k.startswith(text)]
-            return keywords
+            return self.basic_complete(text, line, begidx, endidx, keywords)
         except Exception:
             pass
         return []
@@ -609,9 +717,7 @@ class QuadsClientShell(cmd2.Cmd):
             hosts = self.connection.api.get_hosts()
             # Filter out already broken hosts
             hostnames = [h.get("name") for h in hosts if not h.get("broken", False)]
-            if text:
-                return [h for h in hostnames if h.startswith(text)]
-            return hostnames
+            return self.basic_complete(text, line, begidx, endidx, hostnames)
         except Exception:
             pass
         return []
@@ -625,9 +731,7 @@ class QuadsClientShell(cmd2.Cmd):
             # Only show broken hosts
             hosts = self.connection.api.filter_hosts({"broken": True})
             hostnames = [h.get("name") for h in hosts]
-            if text:
-                return [h for h in hostnames if h.startswith(text)]
-            return hostnames
+            return self.basic_complete(text, line, begidx, endidx, hostnames)
         except Exception:
             pass
         return []
@@ -641,9 +745,7 @@ class QuadsClientShell(cmd2.Cmd):
             hosts = self.connection.api.get_hosts()
             # Filter out already retired hosts
             hostnames = [h.get("name") for h in hosts if not h.get("retired", False)]
-            if text:
-                return [h for h in hostnames if h.startswith(text)]
-            return hostnames
+            return self.basic_complete(text, line, begidx, endidx, hostnames)
         except Exception:
             pass
         return []
@@ -657,9 +759,7 @@ class QuadsClientShell(cmd2.Cmd):
             # Only show retired hosts
             hosts = self.connection.api.filter_hosts({"retired": True})
             hostnames = [h.get("name") for h in hosts]
-            if text:
-                return [h for h in hostnames if h.startswith(text)]
-            return hostnames
+            return self.basic_complete(text, line, begidx, endidx, hostnames)
         except Exception:
             pass
         return []
@@ -677,22 +777,16 @@ class QuadsClientShell(cmd2.Cmd):
             if len(parts) > 1 and parts[-2] == "host":
                 hosts = self.connection.api.get_hosts()
                 hostnames = [h.get("name") for h in hosts]
-                if text:
-                    return [h for h in hostnames if h.startswith(text)]
-                return hostnames
+                return self.basic_complete(text, line, begidx, endidx, hostnames)
 
             # If looking for cloud name after cloud keyword
             if len(parts) > 1 and parts[-2] == "cloud":
                 clouds = self.connection.api.get_clouds()
                 cloud_names = [c.get("name") for c in clouds]
-                if text:
-                    return [c for c in cloud_names if c.startswith(text)]
-                return cloud_names
+                return self.basic_complete(text, line, begidx, endidx, cloud_names)
 
             # Otherwise suggest keywords
-            if text:
-                return [k for k in keywords if k.startswith(text)]
-            return keywords
+            return self.basic_complete(text, line, begidx, endidx, keywords)
         except Exception:
             pass
         return []
@@ -710,14 +804,10 @@ class QuadsClientShell(cmd2.Cmd):
             if len(parts) > 1 and parts[-2] == "id":
                 schedules = self.connection.api.get_schedules({})
                 schedule_ids = [str(s.get("id")) for s in schedules]
-                if text:
-                    return [i for i in schedule_ids if i.startswith(text)]
-                return schedule_ids
+                return self.basic_complete(text, line, begidx, endidx, schedule_ids)
 
             # Otherwise suggest keywords
-            if text:
-                return [k for k in keywords if k.startswith(text)]
-            return keywords
+            return self.basic_complete(text, line, begidx, endidx, keywords)
         except Exception:
             pass
         return []
@@ -732,15 +822,11 @@ class QuadsClientShell(cmd2.Cmd):
             # First arg: server name
             if len(parts) <= 2:
                 servers = list(self.config.get_all_servers().keys())
-                if text:
-                    return [s for s in servers if s.startswith(text)]
-                return servers
+                return self.basic_complete(text, line, begidx, endidx, servers)
 
             # Subsequent args: attributes
             keywords = ["url", "username", "password", "token", "verify"]
-            if text:
-                return [k for k in keywords if k.startswith(text)]
-            return keywords
+            return self.basic_complete(text, line, begidx, endidx, keywords)
         except Exception:
             pass
         return []
@@ -755,9 +841,7 @@ class QuadsClientShell(cmd2.Cmd):
             # Exclude currently connected server
             if self.connection and self.connection.current_server:
                 servers = [s for s in servers if s != self.connection.current_server]
-            if text:
-                return [s for s in servers if s.startswith(text)]
-            return servers
+            return self.basic_complete(text, line, begidx, endidx, servers)
         except Exception:
             pass
         return []
@@ -834,21 +918,58 @@ class QuadsClientShell(cmd2.Cmd):
             "nic-vendor",
             "nic-speed",
         ]
-        if text:
-            return [k for k in keywords if k.startswith(text)]
-        return keywords
+        return self.basic_complete(text, line, begidx, endidx, keywords)
 
     def do_ls_available(self, args):
         """List available hosts"""
         self.available_commands.cmd_ls_available(args)
 
+    def complete_cloud_only(self, text, line, begidx, endidx):
+        """Autocomplete for cloud-only command"""
+        if not self.connection or not self.connection.is_authenticated:
+            return []
+        try:
+            clouds = self.connection.api.get_clouds()
+            cloud_names = [c.get("name") for c in clouds if c.get("name")]
+            return self.basic_complete(text, line, begidx, endidx, cloud_names)
+        except Exception:
+            pass
+        return []
+
     def do_move_status(self, args):
         """Show move/rebuild progress. Usage: move_status [hostname]"""
         self.move_commands.cmd_move_status(args)
 
+    def complete_move_status(self, text, line, begidx, endidx):
+        """Autocomplete for move-status command"""
+        if not self.connection or not self.connection.is_authenticated:
+            return []
+        try:
+            hosts = self.connection.api.get_hosts()
+            hostnames = [h.get("name") for h in hosts if h.get("name")]
+            return self.basic_complete(text, line, begidx, endidx, hostnames)
+        except Exception:
+            pass
+        return []
+
     def do_track(self, args):
         """Live-track move/rebuild progress. Usage: track [hostname|cloudname]"""
         self.track_commands.cmd_track(args)
+
+    def complete_track(self, text, line, begidx, endidx):
+        """Autocomplete for track command"""
+        if not self.connection or not self.connection.is_authenticated:
+            return []
+        try:
+            hosts = self.connection.api.get_hosts()
+            hostnames = [h.get("name") for h in hosts if h.get("name")]
+            clouds = self.connection.api.get_clouds()
+            cloud_names = [c.get("name") for c in clouds if c.get("name")]
+            candidates = hostnames + cloud_names
+            return self.basic_complete(text, line, begidx, endidx, candidates)
+        except Exception:
+            pass
+        return []
 
     def do_activity(self, args):
         """Show active moves grouped by cloud. Usage: activity"""
@@ -882,13 +1003,36 @@ class QuadsClientShell(cmd2.Cmd):
         """Create new session"""
         self.session_commands.cmd_session_create(args)
 
+    def complete_session_create(self, text, line, begidx, endidx):
+        """Autocomplete for session-create command"""
+        servers = []
+        if self.config:
+            servers = list(self.config.get_all_servers().keys())
+        return self.basic_complete(text, line, begidx, endidx, servers)
+
     def do_session_switch(self, args):
         """Switch active session"""
         self.session_commands.cmd_session_switch(args)
 
+    def complete_session_switch(self, text, line, begidx, endidx):
+        """Autocomplete for session-switch command"""
+        if not self.session_manager:
+            return []
+        sessions = self.session_manager.list_sessions()
+        candidates = [str(s.id) for s in sessions]
+        return self.basic_complete(text, line, begidx, endidx, candidates)
+
     def do_session(self, args):
         """Quick switch to session by ID or label"""
         self.session_commands.cmd_session(args)
+
+    def complete_session(self, text, line, begidx, endidx):
+        """Autocomplete for session command"""
+        if not self.session_manager:
+            return []
+        sessions = self.session_manager.list_sessions()
+        candidates = [str(s.id) for s in sessions] + [s.label for s in sessions if s.label]
+        return self.basic_complete(text, line, begidx, endidx, candidates)
 
     def do_session_list(self, args):
         """List all sessions"""
@@ -897,6 +1041,14 @@ class QuadsClientShell(cmd2.Cmd):
     def do_session_close(self, args):
         """Close session"""
         self.session_commands.cmd_session_close(args)
+
+    def complete_session_close(self, text, line, begidx, endidx):
+        """Autocomplete for session-close command"""
+        if not self.session_manager:
+            return []
+        sessions = self.session_manager.list_sessions()
+        candidates = [str(s.id) for s in sessions]
+        return self.basic_complete(text, line, begidx, endidx, candidates)
 
     def do_session_close_all(self, args):
         """Close all inactive sessions"""

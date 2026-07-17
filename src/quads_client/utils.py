@@ -271,3 +271,33 @@ def validate_cloud_exists(api, cloud_name: str) -> bool:
     """
     clouds = api.filter_clouds({"name": cloud_name})
     return bool(clouds)
+
+
+def resolve_os(api, os_input: str):
+    """
+    Validate and resolve an OS selection against the server's OS list.
+
+    Matches by Title (case-insensitive) or by numeric Id.
+    Returns (canonical_title, None) on success, (None, error_string) on failure.
+    """
+    os_list = api.get_os_list()
+    if not os_list:
+        return None, f"OS '{os_input}' not found"
+
+    os_lower = os_input.lower()
+    for entry in os_list:
+        title = entry.get("Title", "")
+        if title.lower() == os_lower:
+            return title, None
+
+    if os_input.isdigit():
+        os_id = int(os_input)
+        for entry in os_list:
+            if entry.get("Id") == os_id:
+                return entry.get("Title"), None
+
+    available = ", ".join(entry.get("Title", "") for entry in os_list if entry.get("Title"))
+    error = f"OS '{os_input}' not found"
+    if available:
+        error += f"\nAvailable: {available}"
+    return None, error

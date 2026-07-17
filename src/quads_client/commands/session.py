@@ -90,7 +90,7 @@ class SessionCommands:
         """
         target = args.strip()
 
-        if not target or target == "?":
+        if not target or target in ("?", "-h", "--help"):
             self.shell.poutput("Usage: session <session_id|label>")
             self.shell.poutput("\nQuick switch to a session by ID or label.")
             self.shell.poutput("See also: session-list, session-switch")

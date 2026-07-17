@@ -3,6 +3,7 @@
 [![pytest](https://github.com/quadsproject/quads-client/actions/workflows/pytest.yml/badge.svg)](https://github.com/quadsproject/quads-client/actions/workflows/pytest.yml)
 [![codecov](https://codecov.io/gh/quadsproject/quads-client/branch/main/graph/badge.svg)](https://codecov.io/gh/quadsproject/quads-client)
 [![PyPI version](https://img.shields.io/pypi/v/quads-client.svg)](https://pypi.org/project/quads-client/)
+[![GitHub Release](https://img.shields.io/github/v/release/quadsproject/quads-client)](https://github.com/quadsproject/quads-client/releases/latest)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -459,7 +460,7 @@ token-login
 # Option B: Register new account (legacy)
 register your.email@example.com YourPassword123
 
-# 2. Schedule hosts (automatic for 5 days or until Sunday 21:00 UTC)
+# 2. Schedule hosts (duration configured by QUADS admin)
 schedule 3 description "My dev environment"
 schedule host01,host02 description "CI testing"
 schedule host-list hosts.txt description "Perf lab"
@@ -489,24 +490,42 @@ cloud_list  cloud_only
 
 **Context-Aware Argument Completion**: Press `Tab` to complete command arguments based on live server data
 
-- **Cloud names**: `mod_cloud <Tab>` → shows available clouds
-- **Hostnames**: `mark_broken <Tab>` → shows non-broken hosts
-- **Assignment IDs**: `terminate <Tab>` → shows your active assignment IDs
-- **Server names**: `connect <Tab>` → shows configured servers
-- **Keywords**: `schedule <Tab>` → shows options like `description`, `nowipe`, `vlan`, `qinq`, `model`, `ram`, `disk-type`, `gpu-vendor`, `nic-vendor`, etc.
+- **Cloud names**: `mod_cloud <Tab>` shows available clouds
+- **Hostnames**: `mark_broken <Tab>` shows non-broken hosts
+- **Assignment IDs**: `terminate <Tab>` shows your active assignment IDs
+- **Server names**: `connect <Tab>` shows configured servers
+- **Position-aware schedule**: Completions change based on argument position (cloud, hosts, dates, options)
+- **Value completions**: `os <Tab>` shows available OS titles, `vlan <Tab>` shows free VLANs
 
 **Examples**:
 ```
-# SSM mode - schedule command shows hostnames first, then keywords
+# SSM mode - position 1: hostnames, host-list, and count suggestions
 (quads1-dev) > schedule <Tab>
-host01.example.com  host02.example.com  host03.example.com  1  2  3  5  10
+host-list  host01.example.com  host02.example.com  1  2  3  5  10
 
-(quads1-dev) > schedule 3 <Tab>
-description  nowipe  vlan  qinq  model  ram  host-list
+# SSM mode - position 2+: option keywords (after value keyword, no suggestions)
+(quads1-dev) > schedule 3 description "test" <Tab>
+description  nowipe  vlan  qinq  os  model  ram  disk-type  ...
 
-# Admin mode - schedule command shows cloud names first
-(quads1-dev) > schedule <Tab>
+# Admin mode - position 1: cloud names
+(quads1-dev) [ADMIN] > schedule <Tab>
 cloud01  cloud02  cloud03
+
+# Admin mode - position 2: hostnames and host-list
+(quads1-dev) [ADMIN] > schedule cloud02 <Tab>
+host-list  host01.example.com  host02.example.com  host03.example.com
+
+# Admin mode - position 3-4: dates (free-form, no suggestions)
+# Admin mode - position 5+: option keywords
+(quads1-dev) [ADMIN] > schedule cloud02 host-list ~/hosts.txt 2026-08-01 2026-08-15 <Tab>
+description  cloud-owner  cc-users  cloud-ticket  vlan  qinq  os  nowipe
+
+# Value completions from server
+(quads1-dev) [ADMIN] > schedule cloud02 host01 2026-08-01 2026-08-15 os <Tab>
+RHEL 9.4  RHEL 8.10  CentOS 9
+
+(quads1-dev) [ADMIN] > schedule cloud02 host01 2026-08-01 2026-08-15 vlan <Tab>
+1100  1200  1300
 
 # Cloud operations
 (quads1-dev) > cloud_list cloud <Tab>
@@ -842,7 +861,7 @@ schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIO
   nic-speed <GBPS>                               - Minimum NIC speed in Gbps (count mode only)
 my_assignments                                   - List all your assignments
 my_hosts                                         - Show your currently scheduled hosts
-available                                        - Show available hosts for self-scheduling
+ls_available                                     - Show available hosts for self-scheduling
 terminate <assignment-id> [hostname]             - Terminate assignment or release host
 ```
 
@@ -882,11 +901,11 @@ schedule 2 description "ML training" gpu-vendor "NVIDIA Corporation" ram 256
 schedule 4 description "High-NIC" interfaces 4 nic-vendor Mellanox
 ```
 
-You can also use `ls-available` to discover hosts first, then schedule specific ones by name:
+You can also use `ls_available` to discover hosts first, then schedule specific ones by name:
 
 ```bash
 # Discover, then schedule by name
-ls-available gpu-vendor "NVIDIA Corporation" ram 256
+ls_available gpu-vendor "NVIDIA Corporation" ram 256
 schedule host03.example.com,host04.example.com description "ML training"
 ```
 
@@ -902,10 +921,10 @@ schedule 3 description "test"
 ```
 
 **SSM Server Requirements:**
-- QUADS server must have `self_serve_enabled: true` in quads.yml
+- QUADS server must have `ssm_enable: true` in quads.yml
 - No ticketing system required for SSM mode
-- Server limits: max 10 hosts per assignment, max 3 active assignments per user
-- Auto-expiration: 5 days or Sunday 21:00 UTC (configurable server-side)
+- Limits are configured by the QUADS admin per-lab (host count, active assignments, duration, etc.)
+- quads-client itself imposes no scheduling limits
 
 ### Host Management (Admin)
 
@@ -1122,8 +1141,7 @@ SSM users can:
 - **View** their own resources with `my_assignments` and `my_hosts` (ownership enforced)
 - **Track** any active move with `track`, `move_status`, and `activity` (global visibility)
 - **Terminate** assignments when done with `terminate` (own assignments only)
-- **Duration**: Server-controlled (5 days or Sunday 21:00 UTC, whichever first)
-- **Limits**: Max 10 hosts per assignment, max 3 active assignments per user
+- **Duration and Limits**: Configured by the QUADS admin per-lab (quads-client imposes no limits)
 
 > [!TIP]
 > `my_hosts` and `my_assignments` only show clouds where you are the **owner**. If you are a CC-user on an admin-scheduled cloud, use `track <cloudname>` or the GUI Move Progress view to follow its provisioning status.
@@ -1188,7 +1206,7 @@ quads-client/
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
-├── tests/                    - pytest test suite (754 tests)
+├── tests/                    - pytest test suite (934 tests)
 │   ├── test_commands_programmatic.py - Tests for GUI-supporting programmatic methods
 │   └── ...                   - Other test files
 ├── rpm/

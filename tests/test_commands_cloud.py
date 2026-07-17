@@ -233,8 +233,28 @@ def test_mod_cloud_with_os(mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
     mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
+    mock_shell.connection.api.get_os_list.return_value = [
+        {"Id": 1, "Title": "RHEL 9.4", "Release Name": "", "Family": "Redhat"},
+    ]
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud('cloud05 os "RHEL 9.4"')
 
     mock_shell.connection.api.update_assignment.assert_called_once_with(42, {"ostype": "RHEL 9.4"})
+
+
+def test_mod_cloud_with_invalid_os(mock_shell):
+    """Test mod-cloud rejects invalid OS and does not call API"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.get_os_list.return_value = [
+        {"Id": 1, "Title": "RHEL 9.4", "Release Name": "", "Family": "Redhat"},
+    ]
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud('cloud05 os "Windows 11"')
+
+    mock_shell.connection.api.update_assignment.assert_not_called()
+    mock_shell.perror.assert_called()
+    error_msg = mock_shell.perror.call_args[0][0]
+    assert "not found" in error_msg
