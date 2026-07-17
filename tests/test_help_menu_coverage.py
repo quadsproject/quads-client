@@ -618,7 +618,7 @@ class TestCompleteTerminate:
             {"id": 8},
         ]
         result = shell.complete_terminate("", "terminate ", 10, 10)
-        assert result == ["8", "10", "11"]
+        assert [str(item) for item in result] == ["8", "10", "11"]
 
     def test_api_exception(self):
         shell = _make_connected_shell()
