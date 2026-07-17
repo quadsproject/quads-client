@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quads-client"
-version = "0.8.7"
+version = "0.8.8"
 description = "QUADS Client provides both a powerful CLI and an intuitive GUI for managing multiple QUADS servers."
 readme = "README.md"
 requires-python = ">=3.13"

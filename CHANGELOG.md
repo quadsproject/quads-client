@@ -1,6 +1,91 @@
 # CHANGELOG
 
 
+## v0.8.8 (2026-07-17)
+
+### Bug Fixes
+
+- Align consistent help menus.
+  ([`09d5ae5`](https://github.com/quadsproject/quads-client/commit/09d5ae50f068ddca7bd54b22957795795e634217))
+
+* Fix inconsistencies in help or ? menus * Ensure help commands filtered by user role (admin vs.
+  non-admin)
+
+Fixes: https://github.com/quadsproject/quads-client/issues/152
+
+- Align other <tab> complete command-sets.
+  ([`655f452`](https://github.com/quadsproject/quads-client/commit/655f452dfff76b79e47a5f3a4971426c4ccce354))
+
+Tab Completion section (lines 497-523): Completely rewritten to reflect the new position-aware
+  completion behavior: - SSM position 1 now shows host-list + hostnames + counts - Admin mode shows
+  the full positional flow: clouds, then hosts + host-list, then dates (empty), then keywords -
+  Added examples for os <Tab> and vlan <Tab> value completions from server
+
+Assisted-by: claude
+
+Related-to: https://github.com/quadsproject/quads-client/issues/152
+
+- Black formatting
+  ([`03fc18c`](https://github.com/quadsproject/quads-client/commit/03fc18c8708194025f63a9c97a8e8abc58145bb9))
+
+- Fix cmd2 tab completion
+  ([`c87ecc9`](https://github.com/quadsproject/quads-client/commit/c87ecc96e4e352d5aabacf0a2408036ebb479e4b))
+
+fixes: https://github.com/quadsproject/quads-client/issues/155
+
+- Fix id numeration in tests
+  ([`336a8e3`](https://github.com/quadsproject/quads-client/commit/336a8e3dfe58ad7cb403085f22b5d2b9cfe188fc))
+
+- Ghost chars in cmd2, column display.
+  ([`b91b722`](https://github.com/quadsproject/quads-client/commit/b91b722ae58ef8088bb152bbe036c6673d9dfc8c))
+
+* Fix issues in readline rendering.
+
+Navigating command history with arrow keys left remnant "ghost characters" on the prompt line.
+
+**Root cause:** The shell's `_rl()` helper manually wrapped ANSI escape codes in readline
+  non-printing markers (`\x01`/`\x02`), but cmd2 already does this automatically via
+  `rl_escape_prompt()`. The double-wrapping produced orphan `\x02` bytes that GNU readline counted
+  as visible characters, inflating its prompt width calculation and causing incomplete redraws
+  during history recall.
+
+**Fix:** Removed `_rl()` and all manual `\x01`/`\x02` wrapping from prompt construction. ANSI escape
+  codes are now passed as raw sequences, letting cmd2 handle readline escaping.
+
+Reported history bugs are just due to terminal size.
+
+Assisted-by: claude
+
+fixes: https://github.com/quadsproject/quads-client/issues/154
+
+- Sort assignment id numerically.
+  ([`0c4f532`](https://github.com/quadsproject/quads-client/commit/0c4f532e76109aafbe2ee716a316552552e660f4))
+
+fixes: https://github.com/quadsproject/quads-client/issues/162
+
+- Validate OS selection in schedule/mod-cloud
+  ([`ae78cbf`](https://github.com/quadsproject/quads-client/commit/ae78cbf71c6da8ae4a380882ee1b0f5e0e562f87))
+
+Add client-side OS validation via resolve_os() before submitting to API. Matches by Title
+  (case-insensitive) or numeric Id, shows available options on mismatch. Sort terminate
+  tab-completion IDs numerically (#162).
+
+Also small refactor for DRY compliance
+
+fixes: https://github.com/quadsproject/quads-client/issues/153
+
+### Chores
+
+- Add more test coverage for previous fixes
+  ([`ad93c2c`](https://github.com/quadsproject/quads-client/commit/ad93c2c54ffde9d8198a544b943cc1a963c818a3))
+
+- Update docs to explain global tracking
+  ([`6c480e5`](https://github.com/quadsproject/quads-client/commit/6c480e50a80690262ac1e77f7934f55edcc82bf9))
+
+- Update RPM spec version to 0.8.7
+  ([`1643b6e`](https://github.com/quadsproject/quads-client/commit/1643b6e7af1ead3a4d716598f17ec95a09b4f67b))
+
+
 ## v0.8.7 (2026-07-02)
 
 ### Bug Fixes
