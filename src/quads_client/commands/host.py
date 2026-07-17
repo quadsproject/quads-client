@@ -49,7 +49,7 @@ class HostCommands:
         if not self._require_connection():
             return
 
-        if not args.strip():
+        if not args.strip() or args.strip() in ("?", "-h", "--help"):
             self.shell.perror("Usage: mark-broken <hostname>")
             return
 
@@ -65,7 +65,7 @@ class HostCommands:
         if not self._require_connection():
             return
 
-        if not args.strip():
+        if not args.strip() or args.strip() in ("?", "-h", "--help"):
             self.shell.perror("Usage: mark-repaired <hostname>")
             return
 
@@ -81,7 +81,7 @@ class HostCommands:
         if not self._require_connection():
             return
 
-        if not args.strip():
+        if not args.strip() or args.strip() in ("?", "-h", "--help"):
             self.shell.perror("Usage: retire <hostname>")
             return
 
@@ -97,7 +97,7 @@ class HostCommands:
         if not self._require_connection():
             return
 
-        if not args.strip():
+        if not args.strip() or args.strip() in ("?", "-h", "--help"):
             self.shell.perror("Usage: unretire <hostname>")
             return
 
