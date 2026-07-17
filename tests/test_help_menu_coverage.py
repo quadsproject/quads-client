@@ -30,6 +30,14 @@ def _make_connected_shell(is_admin=False):
         {"name": "host01"},
         {"name": "host02"},
     ]
+    mock_conn.api.get_os_list.return_value = [
+        {"Id": 1, "Title": "RHEL 9.4", "Release Name": "Plow", "Family": "RHEL"},
+        {"Id": 2, "Title": "RHEL 8.10", "Release Name": "Ootpa", "Family": "RHEL"},
+    ]
+    mock_conn.api.get_free_vlans.return_value = [
+        {"vlan_id": 1100},
+        {"vlan_id": 1200},
+    ]
     shell.session_manager.active_connection = mock_conn
     return shell
 
@@ -113,17 +121,110 @@ class TestCompleteSchedule:
         assert "cloud01" in result
         assert "cloud02" in result
 
-    def test_admin_later_args_hosts_and_keywords(self):
+    def test_admin_position2_hosts_and_host_list(self):
         shell = _make_connected_shell(is_admin=True)
-        result = shell.complete_schedule("", "schedule cloud02 host01 ", 24, 24)
-        assert "host01" in result
-        assert "description" in result
-
-    def test_admin_later_args_filtered(self):
-        shell = _make_connected_shell(is_admin=True)
-        result = shell.complete_schedule("host", "schedule cloud02 host01 host", 24, 28)
+        result = shell.complete_schedule("", "schedule cloud02 ", 18, 18)
         assert "host01" in result
         assert "host02" in result
+        assert "host-list" in result
+        assert "cloud01" not in result
+        assert "description" not in result
+
+    def test_admin_position2_filtered(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule("host", "schedule cloud02 host", 18, 22)
+        assert "host01" in result
+        assert "host02" in result
+        assert "host-list" in result
+
+    def test_admin_no_cloud_at_position2(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule("cloud", "schedule cloud02 cloud", 18, 23)
+        assert result == []
+
+    def test_admin_date_positions_empty(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule("", "schedule cloud02 host01 ", 24, 24)
+        assert result == []
+
+    def test_admin_date_position4_empty(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule("", "schedule cloud02 host01 2026-08-01 ", 35, 35)
+        assert result == []
+
+    def test_admin_options_keywords_only(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule(
+            "",
+            "schedule cloud02 host01 2026-08-01 2026-08-15 ",
+            47,
+            47,
+        )
+        assert "description" in result
+        assert "cloud-owner" in result
+        assert "nowipe" in result
+        assert "host01" not in result
+
+    def test_admin_options_filtered(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule(
+            "cl",
+            "schedule cloud02 host01 2026-08-01 2026-08-15 cl",
+            47,
+            49,
+        )
+        assert "cloud-owner" in result
+        assert "cloud-ticket" in result
+        assert "cc-users" not in result
+        assert "description" not in result
+
+    def test_admin_value_keyword_suppresses_completions(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule(
+            "",
+            "schedule cloud02 host01 2026-08-01 2026-08-15 cloud-owner ",
+            59,
+            59,
+        )
+        assert result == []
+
+    def test_admin_host_list_date_positions(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule("", "schedule cloud02 host-list ~/hosts.txt ", 40, 40)
+        assert result == []
+
+    def test_admin_host_list_options(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule(
+            "",
+            "schedule cloud02 host-list ~/hosts.txt 2026-08-01 2026-08-15 ",
+            62,
+            62,
+        )
+        assert "description" in result
+        assert "host01" not in result
+
+    def test_admin_os_value_completion(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule(
+            "",
+            "schedule cloud02 host01 2026-08-01 2026-08-15 os ",
+            50,
+            50,
+        )
+        assert "RHEL 9.4" in result
+        assert "RHEL 8.10" in result
+
+    def test_admin_vlan_value_completion(self):
+        shell = _make_connected_shell(is_admin=True)
+        result = shell.complete_schedule(
+            "",
+            "schedule cloud02 host01 2026-08-01 2026-08-15 vlan ",
+            51,
+            51,
+        )
+        assert "1100" in result
+        assert "1200" in result
 
     def test_admin_api_exception_fallback(self):
         shell = _make_connected_shell(is_admin=True)
@@ -136,6 +237,7 @@ class TestCompleteSchedule:
         result = shell.complete_schedule("", "schedule ", 9, 9)
         assert "host01" in result
         assert "1" in result
+        assert "host-list" in result
 
     def test_ssm_first_arg_filtered(self):
         shell = _make_connected_shell(is_admin=False)
@@ -145,9 +247,10 @@ class TestCompleteSchedule:
 
     def test_ssm_later_args_keywords(self):
         shell = _make_connected_shell(is_admin=False)
-        result = shell.complete_schedule("", "schedule 3 description ", 22, 22)
-        assert "description" in result
+        result = shell.complete_schedule("", "schedule 3 description test ", 29, 29)
+        assert "nowipe" in result
         assert "model" in result
+        assert "vlan" in result
 
     def test_ssm_later_args_filtered(self):
         shell = _make_connected_shell(is_admin=False)
@@ -155,6 +258,23 @@ class TestCompleteSchedule:
         assert "disk-type" in result
         assert "disk-size" in result
         assert "model" not in result
+
+    def test_ssm_value_keyword_suppresses_completions(self):
+        shell = _make_connected_shell(is_admin=False)
+        result = shell.complete_schedule("", "schedule 3 description ", 22, 22)
+        assert result == []
+
+    def test_ssm_os_value_completion(self):
+        shell = _make_connected_shell(is_admin=False)
+        result = shell.complete_schedule("", "schedule 3 description test os ", 31, 31)
+        assert "RHEL 9.4" in result
+        assert "RHEL 8.10" in result
+
+    def test_ssm_vlan_value_completion(self):
+        shell = _make_connected_shell(is_admin=False)
+        result = shell.complete_schedule("", "schedule 3 description test vlan ", 33, 33)
+        assert "1100" in result
+        assert "1200" in result
 
     def test_ssm_api_exception_fallback(self):
         shell = _make_connected_shell(is_admin=False)

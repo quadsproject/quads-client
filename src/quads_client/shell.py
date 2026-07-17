@@ -409,6 +409,17 @@ class QuadsClientShell(cmd2.Cmd):
         else:
             self.user_commands.cmd_schedule(args)
 
+    def _filter_completions(self, candidates, text):
+        if text:
+            return [c for c in candidates if c.startswith(text)]
+        return candidates
+
+    def _get_arg_position(self, parts, text):
+        """Return the 1-based argument position being completed."""
+        if text:
+            return len(parts) - 1
+        return len(parts)
+
     def complete_schedule(self, text, line, begidx, endidx):
         """Autocomplete for schedule command"""
         if not self.connection or not self.connection.is_authenticated:
@@ -416,37 +427,85 @@ class QuadsClientShell(cmd2.Cmd):
 
         parts = line.split()
 
-        # For admin mode, try to get cloud names
         if self.connection.is_admin:
-            admin_keywords = [
-                "description",
-                "cloud-owner",
-                "cc-users",
-                "cloud-ticket",
-                "vlan",
-                "qinq",
-                "os",
-                "nowipe",
-            ]
-            try:
-                if len(parts) <= 2:
-                    clouds = self.connection.api.get_clouds()
-                    cloud_names = [c.get("name") for c in clouds if c.get("name")]
-                    if text:
-                        return [c for c in cloud_names if c.startswith(text)]
-                    return cloud_names
-                else:
-                    hosts = self.connection.api.get_hosts()
-                    hostnames = [h.get("name") for h in hosts]
-                    candidates = admin_keywords + hostnames
-                    if text:
-                        return [c for c in candidates if c.startswith(text)]
-                    return candidates
-            except Exception:
-                pass
-            return admin_keywords
+            return self._complete_schedule_admin(text, line, parts, begidx, endidx)
 
-        # SSM mode
+        return self._complete_schedule_ssm(text, line, parts, begidx, endidx)
+
+    def _complete_schedule_admin(self, text, line, parts, begidx, endidx):
+        """Position-aware completion for admin schedule.
+
+        Syntax: schedule <cloud> <hosts|host-list> [path] <start> <end> [options]
+        """
+        admin_keywords = [
+            "description",
+            "cloud-owner",
+            "cc-users",
+            "cloud-ticket",
+            "vlan",
+            "qinq",
+            "os",
+            "nowipe",
+        ]
+        value_keywords = [
+            "description",
+            "cloud-owner",
+            "cc-users",
+            "cloud-ticket",
+            "vlan",
+            "qinq",
+            "os",
+        ]
+
+        pos = self._get_arg_position(parts, text)
+
+        try:
+            if pos == 1:
+                clouds = self.connection.api.get_clouds()
+                cloud_names = [c.get("name") for c in clouds if c.get("name")]
+                return self._filter_completions(cloud_names, text)
+
+            if pos == 2:
+                hosts = self.connection.api.get_hosts()
+                hostnames = [h.get("name") for h in hosts]
+                candidates = ["host-list"] + hostnames
+                return self._filter_completions(candidates, text)
+
+            prev_word = parts[-2] if text else parts[-1]
+
+            if prev_word == "host-list":
+                return self.path_complete(text, line, begidx, endidx)
+
+            has_host_list = "host-list" in parts
+            date_start = 4 if has_host_list else 3
+            options_start = date_start + 2
+
+            if pos < options_start:
+                return []
+
+            if prev_word == "os":
+                os_list = self.connection.api.get_os_list()
+                os_names = [o.get("Title") for o in os_list if o.get("Title")]
+                return self._filter_completions(os_names, text)
+
+            if prev_word == "vlan":
+                vlans = self.connection.api.get_free_vlans()
+                vlan_ids = [str(v.get("vlan_id")) for v in vlans if v.get("vlan_id")]
+                return self._filter_completions(vlan_ids, text)
+
+            if prev_word in value_keywords:
+                return []
+
+            return self._filter_completions(admin_keywords, text)
+        except Exception:
+            pass
+        return admin_keywords
+
+    def _complete_schedule_ssm(self, text, line, parts, begidx, endidx):
+        """Position-aware completion for SSM schedule.
+
+        Syntax: schedule <count|hostname[,hostname]|host-list path> description <desc> [options]
+        """
         ssm_keywords = [
             "description",
             "nowipe",
@@ -464,19 +523,52 @@ class QuadsClientShell(cmd2.Cmd):
             "nic-vendor",
             "nic-speed",
         ]
+
+        pos = self._get_arg_position(parts, text)
+
         try:
-            if len(parts) <= 2:
+            if pos == 1:
                 hosts = self.connection.api.filter_hosts({"can_self_schedule": True})
                 hostnames = [h.get("name") for h in hosts]
                 count_suggestions = ["1", "2", "3", "5", "10"]
-                candidates = hostnames + count_suggestions
-                if text:
-                    return [c for c in candidates if c.startswith(text)]
-                return candidates
-            else:
-                if text:
-                    return [k for k in ssm_keywords if k.startswith(text)]
-                return ssm_keywords
+                candidates = ["host-list"] + hostnames + count_suggestions
+                return self._filter_completions(candidates, text)
+
+            prev_word = parts[-2] if text else parts[-1]
+
+            if prev_word == "host-list":
+                return self.path_complete(text, line, begidx, endidx)
+
+            if prev_word == "os":
+                os_list = self.connection.api.get_os_list()
+                os_names = [o.get("Title") for o in os_list if o.get("Title")]
+                return self._filter_completions(os_names, text)
+
+            if prev_word == "vlan":
+                vlans = self.connection.api.get_free_vlans()
+                vlan_ids = [str(v.get("vlan_id")) for v in vlans if v.get("vlan_id")]
+                return self._filter_completions(vlan_ids, text)
+
+            ssm_value_keywords = [
+                "description",
+                "vlan",
+                "qinq",
+                "os",
+                "model",
+                "ram",
+                "disk-type",
+                "disk-size",
+                "disk-count",
+                "gpu-vendor",
+                "gpu-product",
+                "interfaces",
+                "nic-vendor",
+                "nic-speed",
+            ]
+            if prev_word in ssm_value_keywords:
+                return []
+
+            return self._filter_completions(ssm_keywords, text)
         except Exception:
             pass
         return ssm_keywords
