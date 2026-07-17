@@ -610,6 +610,16 @@ class TestCompleteTerminate:
         assert "host01" in result
         assert "host02" in result
 
+    def test_assignment_ids_sorted_numerically(self):
+        shell = _make_connected_shell()
+        shell.connection.api.filter_assignments.return_value = [
+            {"id": 10},
+            {"id": 11},
+            {"id": 8},
+        ]
+        result = shell.complete_terminate("", "terminate ", 10, 10)
+        assert result == ["8", "10", "11"]
+
     def test_api_exception(self):
         shell = _make_connected_shell()
         shell.connection.api.filter_assignments.side_effect = Exception("fail")
