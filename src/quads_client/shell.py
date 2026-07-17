@@ -164,9 +164,7 @@ class QuadsClientShell(cmd2.Cmd):
 
             activity = self._get_activity_indicator()
 
-            self.prompt = (
-                f"{color}{symbol} {session_info}({short_name}){activity}{admin_badge}\033[0m > "
-            )
+            self.prompt = f"{color}{symbol} {session_info}({short_name}){activity}{admin_badge}\033[0m > "
         else:
             self.prompt = "\033[1;31m(disconnected)\033[0m > "
 
