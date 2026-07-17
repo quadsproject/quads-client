@@ -451,7 +451,7 @@ class ServerCommands:
             return (False, f"Failed to remove server: {e}")
 
     def cmd_add_server(self, args):
-        """Add a new server to configuration. Usage: add-server <name> <url> <username> <password>"""
+        """Add a new server to configuration. Usage: add-server <name> <url> <username> <password> [--no-verify]"""
         parts = args.split()
         if len(parts) < 4:
             self.shell.perror("Usage: add-server <name> <url> <username> <password> [--no-verify]")

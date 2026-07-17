@@ -191,7 +191,7 @@ class CloudCommands:
         if not self._require_connection():
             return
 
-        if not args.strip():
+        if not args.strip() or args.strip() in ("?", "-h", "--help"):
             self.shell.perror("Usage: cloud-create <name>")
             return
 
@@ -456,7 +456,7 @@ class CloudCommands:
 
         cloud_name = args.strip()
 
-        if not cloud_name:
+        if not cloud_name or cloud_name in ("?", "-h", "--help"):
             self.shell.perror("Usage: cloud_only <cloud_name>")
             return
 
