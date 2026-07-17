@@ -3,7 +3,7 @@ from tabulate import tabulate
 
 from quads_client.arg_parser import parse_extend_args, parse_schedule_admin_args, parse_shrink_args
 from quads_client.error_handler import handle_api_error, require_admin, require_connection
-from quads_client.utils import format_schedule_datetime, parse_api_datetime
+from quads_client.utils import format_schedule_datetime, parse_api_datetime, resolve_os
 
 
 def parse_flexible_datetime(date_str):
@@ -261,7 +261,11 @@ class ScheduleCommands:
                 if parsed["qinq"] is not None:
                     batch_data["qinq"] = parsed["qinq"]
                 if parsed.get("os"):
-                    batch_data["ostype"] = parsed["os"]
+                    resolved_os, os_error = resolve_os(self.shell.connection.api, parsed["os"])
+                    if os_error:
+                        self.shell.perror(os_error)
+                        return
+                    batch_data["ostype"] = resolved_os
 
             try:
                 result = self.shell.connection.api.create_schedules_batch(batch_data)

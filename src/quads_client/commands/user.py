@@ -10,6 +10,7 @@ from quads_client.utils import (
     extract_cloud_number,
     extract_hostname,
     get_username_short,
+    resolve_os,
 )
 
 
@@ -729,7 +730,11 @@ class UserCommands:
             if parsed["vlan"]:
                 assignment_data["vlan"] = parsed["vlan"]
             if parsed["os"]:
-                assignment_data["ostype"] = parsed["os"]
+                resolved_os, os_error = resolve_os(self.shell.connection.api, parsed["os"])
+                if os_error:
+                    self.shell.perror(os_error)
+                    return
+                assignment_data["ostype"] = resolved_os
 
             # Step 1: Create self-assignment (SSM endpoint auto-assigns cloud)
             assignment = auto_refresh_on_auth_error(
