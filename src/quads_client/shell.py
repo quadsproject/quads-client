@@ -20,11 +20,6 @@ from quads_client.session_manager import SessionManager
 from quads_client.utils import get_ssl_indicator
 
 
-def _rl(ansi):
-    """Wrap ANSI escape code for readline (mark as non-printing)"""
-    return f"\001{ansi}\002"
-
-
 class QuadsClientShell(cmd2.Cmd):
     intro = ""  # We'll use rich console for the banner
 
@@ -120,7 +115,7 @@ class QuadsClientShell(cmd2.Cmd):
         try:
             moves = self.connection.api.get_all_move_status()
             if moves:
-                self._cached_activity_indicator = f"{_rl(chr(27) + '[1;33m')}⚡{_rl(chr(27) + '[0m')}"
+                self._cached_activity_indicator = "\033[1;33m⚡\033[0m"
             else:
                 self._cached_activity_indicator = ""
         except Exception:
@@ -165,15 +160,13 @@ class QuadsClientShell(cmd2.Cmd):
 
             admin_badge = ""
             if self.connection and self.connection.is_admin:
-                admin_badge = f" {_rl(chr(27) + '[1;31m')}[ADMIN]{_rl(chr(27) + '[0m')}"
+                admin_badge = " \033[1;31m[ADMIN]\033[0m"
 
             activity = self._get_activity_indicator()
 
-            self.prompt = (
-                f"{_rl(color)}{symbol} {session_info}({short_name}){activity}{admin_badge}{_rl(chr(27) + '[0m')} > "
-            )
+            self.prompt = f"{color}{symbol} {session_info}({short_name}){activity}{admin_badge}\033[0m > "
         else:
-            self.prompt = f"{_rl(chr(27) + '[1;31m')}(disconnected){_rl(chr(27) + '[0m')} > "
+            self.prompt = "\033[1;31m(disconnected)\033[0m > "
 
     def _get_session_indicators(self) -> str:
         """Generate session indicator string like '[1:dev* 2:prod]'"""
