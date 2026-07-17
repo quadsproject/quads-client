@@ -12,6 +12,7 @@ from quads_client.utils import (
     get_ssl_indicator,
     get_ssl_status_text,
     get_username_short,
+    resolve_os,
     validate_cloud_exists,
 )
 
@@ -485,3 +486,75 @@ def test_validate_cloud_exists_false():
 
     assert result is False
     mock_api.filter_clouds.assert_called_once_with({"name": "cloud99"})
+
+
+OS_LIST = [
+    {"Id": 1, "Title": "Rocky Linux 9.8", "Release Name": "", "Family": "Redhat"},
+    {"Id": 2, "Title": "Fedora 42", "Release Name": "", "Family": "Redhat"},
+    {"Id": 3, "Title": "RHEL 10.0", "Release Name": "", "Family": "Redhat"},
+]
+
+
+def test_resolve_os_exact_title():
+    mock_api = MagicMock()
+    mock_api.get_os_list.return_value = OS_LIST
+    title, error = resolve_os(mock_api, "RHEL 10.0")
+    assert title == "RHEL 10.0"
+    assert error is None
+
+
+def test_resolve_os_case_insensitive():
+    mock_api = MagicMock()
+    mock_api.get_os_list.return_value = OS_LIST
+    title, error = resolve_os(mock_api, "rhel 10.0")
+    assert title == "RHEL 10.0"
+    assert error is None
+    title, error = resolve_os(mock_api, "fedora 42")
+    assert title == "Fedora 42"
+    assert error is None
+
+
+def test_resolve_os_by_id():
+    mock_api = MagicMock()
+    mock_api.get_os_list.return_value = OS_LIST
+    title, error = resolve_os(mock_api, "2")
+    assert title == "Fedora 42"
+    assert error is None
+    title, error = resolve_os(mock_api, "3")
+    assert title == "RHEL 10.0"
+    assert error is None
+
+
+def test_resolve_os_no_match():
+    mock_api = MagicMock()
+    mock_api.get_os_list.return_value = OS_LIST
+    title, error = resolve_os(mock_api, "--help")
+    assert title is None
+    assert "not found" in error
+    assert "Available:" in error
+
+
+def test_resolve_os_no_match_shows_available():
+    mock_api = MagicMock()
+    mock_api.get_os_list.return_value = OS_LIST
+    title, error = resolve_os(mock_api, "Windows 11")
+    assert title is None
+    assert "Rocky Linux 9.8" in error
+    assert "Fedora 42" in error
+    assert "RHEL 10.0" in error
+
+
+def test_resolve_os_empty_list():
+    mock_api = MagicMock()
+    mock_api.get_os_list.return_value = []
+    title, error = resolve_os(mock_api, "RHEL 10.0")
+    assert title is None
+    assert "not found" in error
+
+
+def test_resolve_os_none_list():
+    mock_api = MagicMock()
+    mock_api.get_os_list.return_value = None
+    title, error = resolve_os(mock_api, "RHEL 10.0")
+    assert title is None
+    assert "not found" in error

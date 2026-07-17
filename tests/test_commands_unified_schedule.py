@@ -97,12 +97,36 @@ class TestUnifiedScheduleSSM:
             "owner": "alice",
         }
         mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+        mock_shell.connection.api.get_os_list.return_value = [
+            {"Id": 1, "Title": "RHEL 9.4", "Release Name": "", "Family": "Redhat"},
+        ]
 
         user_cmd = UserCommands(mock_shell)
         user_cmd.cmd_schedule('1 description "Test" os "RHEL 9.4"')
 
         call_args = mock_shell.connection.api.create_self_assignment.call_args[0][0]
         assert call_args["ostype"] == "RHEL 9.4"
+
+    def test_schedule_ssm_with_invalid_os(self, mock_shell):
+        """Test SSM schedule rejects invalid OS and does not call API"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = False
+        mock_shell.connection.username = "alice@example.com"
+        mock_shell.connection.api.filter_available.return_value = [
+            {"name": "host01.example.com"},
+        ]
+        mock_shell.connection.api.get_os_list.return_value = [
+            {"Id": 1, "Title": "RHEL 9.4", "Release Name": "", "Family": "Redhat"},
+        ]
+
+        user_cmd = UserCommands(mock_shell)
+        user_cmd.cmd_schedule('1 description "Test" os "--help"')
+
+        mock_shell.connection.api.create_self_assignment.assert_not_called()
+        mock_shell.perror.assert_called()
+        error_msg = mock_shell.perror.call_args[0][0]
+        assert "not found" in error_msg
 
     def test_schedule_ssm_insufficient_hosts(self, mock_shell):
         """Test SSM schedule with insufficient available hosts"""
@@ -703,6 +727,9 @@ class TestBatchScheduleEndpoint:
             "schedules_created": 1,
             "hostnames": ["host01.example.com"],
         }
+        mock_shell.connection.api.get_os_list.return_value = [
+            {"Id": 1, "Title": "RHEL 9.4", "Release Name": "", "Family": "Redhat"},
+        ]
 
         schedule_cmd = ScheduleCommands(mock_shell)
         cmd = (
@@ -713,3 +740,25 @@ class TestBatchScheduleEndpoint:
 
         batch_data = mock_shell.connection.api.create_schedules_batch.call_args[0][0]
         assert batch_data["ostype"] == "RHEL 9.4"
+
+    def test_schedule_admin_batch_with_invalid_os(self, mock_shell):
+        """Test batch schedule rejects invalid OS and does not call API"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = True
+        mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
+        mock_shell.connection.api.get_os_list.return_value = [
+            {"Id": 1, "Title": "RHEL 9.4", "Release Name": "", "Family": "Redhat"},
+        ]
+
+        schedule_cmd = ScheduleCommands(mock_shell)
+        cmd = (
+            'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" '
+            'description "Test" cloud-owner jdoe cloud-ticket 123 os "bogus"'
+        )
+        schedule_cmd.cmd_schedule_admin(cmd)
+
+        mock_shell.connection.api.create_schedules_batch.assert_not_called()
+        mock_shell.perror.assert_called()
+        error_msg = mock_shell.perror.call_args[0][0]
+        assert "not found" in error_msg
