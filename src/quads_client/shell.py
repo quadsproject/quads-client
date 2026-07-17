@@ -581,7 +581,10 @@ class QuadsClientShell(cmd2.Cmd):
             if len(parts) <= 2:
                 username = self.connection.username.split("@")[0]
                 assignments = self.connection.api.filter_assignments({"owner": username, "active": True})
-                ids = [str(a.get("id", "")) for a in assignments]
+                ids = sorted(
+                    [str(a.get("id", "")) for a in assignments],
+                    key=lambda x: int(x) if x.isdigit() else float("inf"),
+                )
                 return self.basic_complete(text, line, begidx, endidx, ids)
 
             # If assignment ID provided, suggest hostnames from that assignment
