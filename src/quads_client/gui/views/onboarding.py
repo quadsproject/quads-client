@@ -14,7 +14,7 @@ class OnboardingWizard(tk.Toplevel):
 
         self.title("Welcome to QUADS Client")
         self.geometry("600x520")
-        self.resizable(False, False)
+        self.minsize(600, 520)
 
         self.current_step = 0
         self.server_data = {}
