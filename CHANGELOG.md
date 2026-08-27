@@ -1,17 +1,32 @@
 # CHANGELOG
 
 
-## Unreleased
+## v0.8.9 (2026-08-27)
 
 ### Bug Fixes
 
-- Make the first run onboarding wizard resizable on Linux (KDE Plasma / kwin-x11).
+- Onboarding wizard window not resizable.
+  ([`985759b`](https://github.com/quadsproject/quads-client/commit/985759baed81283e48da59939f2087f74fb32616))
 
-  The wizard was hard-coded to 600x520 via `resizable(False, False)`, which KWin
-  treated as a fixed-size window and offered no resize action. It now uses a
-  600x520 minimum size like the other resizable dialogs in the app.
+fixes: https://github.com/quadsproject/quads-client/issues/166
 
-Fixes: https://github.com/quadsproject/quads-client/issues/166
+- Pin gitpython<3.1.60 in semantic-release workflow
+  ([`95045d7`](https://github.com/quadsproject/quads-client/commit/95045d749e9c7996f471c4406fead74f28de068d))
+
+GitPython 3.1.60 removed the Actor.name_email_regex attribute, which python-semantic-release (all
+  versions) uses while validating the commit author. This crashes the release job on main with 'type
+  object Actor has no attribute name_email_regex'. The PSR Docker action resolves gitpython at image
+  build time on every run, so no action tag avoids it.
+
+Replace the Docker action with a pip install pinned to gitpython<3.1.60 and run the semantic-release
+  CLI directly, preserving the released output that gates the PyPI publish step.
+
+See python-semantic-release/python-semantic-release#1475
+
+### Chores
+
+- Update RPM spec version to 0.8.8
+  ([`c7c3cc3`](https://github.com/quadsproject/quads-client/commit/c7c3cc3cfe59fd49e46f1ccd16ce39d7fa25c073))
 
 
 ## v0.8.8 (2026-07-17)
