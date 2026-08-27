@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## Unreleased
+
+### Bug Fixes
+
+- Make the first run onboarding wizard resizable on Linux (KDE Plasma / kwin-x11).
+
+  The wizard was hard-coded to 600x520 via `resizable(False, False)`, which KWin
+  treated as a fixed-size window and offered no resize action. It now uses a
+  600x520 minimum size like the other resizable dialogs in the app.
+
+Fixes: https://github.com/quadsproject/quads-client/issues/166
+
+
 ## v0.8.8 (2026-07-17)
 
 ### Bug Fixes
