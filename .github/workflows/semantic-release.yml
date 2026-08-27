@@ -22,11 +22,31 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Python Semantic Release
+        run: |
+          # gitpython 3.1.60 removed Actor.name_email_regex and breaks
+          # python-semantic-release on every invocation. Pin it until
+          # python-semantic-release/python-semantic-release#1475 is fixed.
+          pip install "python-semantic-release==9.15.0" "gitpython<3.1.60"
+
       - name: Python Semantic Release
         id: semantic
-        uses: python-semantic-release/python-semantic-release@v9.15.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          released_before=$(git tag --points-at HEAD)
+          semantic-release -v version
+          released_after=$(git tag --points-at HEAD)
+          if [ "$released_before" != "$released_after" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish to PyPI
         if: steps.semantic.outputs.released == 'true'
