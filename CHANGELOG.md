@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.8.11 (2026-08-28)
+
+### Bug Fixes
+
+- Add additional sizable fixes with default window sizes
+  ([`d705e76`](https://github.com/quadsproject/quads-client/commit/d705e7610d384d49854d54adbca6651d7354f5f8))
+
+### Chores
+
+- Update RPM spec version to 0.8.10
+  ([`289d481`](https://github.com/quadsproject/quads-client/commit/289d4819f30ddcf74344da9592f09f1d63836655))
+
+
 ## v0.8.10 (2026-08-28)
 
 ### Bug Fixes
