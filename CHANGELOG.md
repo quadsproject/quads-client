@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## Unreleased
+
+### Bug Fixes
+
+- Make About, Preferences, Keyboard Shortcuts, Date Picker and Cloud Hosts dialog windows resizable on Linux (KDE Plasma / kwin-x11).
+
+related-to: https://github.com/quadsproject/quads-client/issues/166
+
+
 ## v0.8.9 (2026-08-27)
 
 ### Bug Fixes
