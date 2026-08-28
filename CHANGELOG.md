@@ -1,13 +1,23 @@
 # CHANGELOG
 
 
-## Unreleased
+## v0.8.10 (2026-08-28)
 
 ### Bug Fixes
 
-- Make About, Preferences, Keyboard Shortcuts, Date Picker and Cloud Hosts dialog windows resizable on Linux (KDE Plasma / kwin-x11).
+- Make dialog windows resizable on kwin-x11
+  ([`ad53b15`](https://github.com/quadsproject/quads-client/commit/ad53b153ad17969f2d46040f11bfa5e30ba54c43))
+
+Replaces resizable(False, False) with minsize matching each dialog's geometry in the About, Keyboard
+  Shortcuts, Preferences, Date Picker and Cloud Hosts dialogs so they can grow when font scaling
+  overflows.
 
 related-to: https://github.com/quadsproject/quads-client/issues/166
+
+### Chores
+
+- Update RPM spec version to 0.8.9
+  ([`f67c80a`](https://github.com/quadsproject/quads-client/commit/f67c80a07ec5fd2030dcbd262fce58399b62f797))
 
 
 ## v0.8.9 (2026-08-27)
