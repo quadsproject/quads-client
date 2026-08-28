@@ -478,7 +478,7 @@ class QuadsClientApp(tk.Tk):
         about_window = tk.Toplevel(self)
         about_window.title("About QUADS Client")
         about_window.geometry("450x400")
-        about_window.resizable(False, False)
+        about_window.minsize(450, 400)
 
         bg_color = self.theme_manager.get_color("bg")
         about_window.configure(bg=bg_color)
@@ -554,7 +554,7 @@ class QuadsClientApp(tk.Tk):
         shortcuts_window = tk.Toplevel(self)
         shortcuts_window.title("Keyboard Shortcuts")
         shortcuts_window.geometry("400x350")
-        shortcuts_window.resizable(False, False)
+        shortcuts_window.minsize(400, 350)
 
         bg_color = self.theme_manager.get_color("bg")
         shortcuts_window.configure(bg=bg_color)
