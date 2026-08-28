@@ -69,7 +69,7 @@ class DatePickerDialog(tk.Toplevel):
         super().__init__(parent)
         self.title(title)
         self.geometry("500x450")
-        self.resizable(False, False)
+        self.minsize(500, 450)
         self.result = None
         self.today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 

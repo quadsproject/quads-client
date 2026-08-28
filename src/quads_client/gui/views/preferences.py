@@ -17,7 +17,7 @@ class PreferencesDialog(tk.Toplevel):
 
         self.title("Preferences")
         self.geometry("500x600")
-        self.resizable(False, False)
+        self.minsize(500, 600)
 
         # Apply theme
         self.theme_manager.configure_toplevel(self)
