@@ -313,6 +313,7 @@ class CloudsView(BaseAdminView):
             dialog = tk.Toplevel(self)
             dialog.title(f"Hosts in {cloud_name}")
             dialog.geometry("700x500")
+            dialog.minsize(700, 500)
             dialog.transient(self.winfo_toplevel())
             dialog.grab_set()
             theme.configure_toplevel(dialog)
