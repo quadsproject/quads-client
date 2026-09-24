@@ -31,9 +31,9 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 ## Table of Contents
 
 - [Installation](#installation)
+  - [From RPM](#from-rpm)
   - [From PyPI (pip)](#from-pypi-pip)
   - [Mac Native Application (pip)](#mac-native-application-pip)
-  - [From RPM](#from-rpm)
   - [From Source](#from-source)
 - [Configuration](#configuration)
   - [Quick Setup (Recommended)](#quick-setup-recommended)
@@ -78,6 +78,20 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 - [Links](#links)
 
 ## Installation
+
+### From RPM
+
+For Fedora:
+
+```bash
+dnf copr enable quadsdev/python3-quads -y
+dnf install quads-client
+```
+
+* If you want to install `quads-client-gui`
+```bash
+dnf install quads-client-gui
+```
 
 ### From PyPI (pip)
 
@@ -141,15 +155,6 @@ mv "dist/QUADS Client GUI.app" /Applications/
 ```
 
 The app can now be launched from Applications or Spotlight.
-
-### From RPM
-
-For Fedora:
-
-```bash
-dnf copr enable quadsdev/python3-quads -y
-dnf install quads-client
-```
 
 ### From Source
 
