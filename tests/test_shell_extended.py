@@ -327,3 +327,23 @@ def test_get_command_func_no_parent_returns_none():
             shell = QuadsClientShell(quiet=True)
             with patch.object(cmd2.Cmd, "get_command_func", None, create=True):
                 assert shell.get_command_func("edit-server") is None
+
+
+def test_get_command_func_resolves_hyphens_via_parent():
+    """cmd2 4.x path: get_command_func falls back to underscores via the parent hook"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+
+            def target(*a, **k):
+                return None
+
+            shell.server_commands.cmd_edit_server = target
+
+            def fake_parent(self, command):
+                return None if command == "edit-server" else getattr(self.server_commands, "cmd_" + command, None)
+
+            with patch.object(cmd2.Cmd, "get_command_func", fake_parent, create=True):
+                func = shell.get_command_func("edit-server")
+
+            assert func == target

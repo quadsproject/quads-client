@@ -96,7 +96,7 @@ class QuadsClientShell(cmd2.Cmd):
         return None
 
     def preloop(self):
-        """Configure custom keybindings (cmd2 2.x-4.x compatible)"""
+        """Configure custom keybindings (cmd2 3.x/4.x compatible)"""
         super().preloop()
         bind_session_switch(self)
 
@@ -105,7 +105,7 @@ class QuadsClientShell(cmd2.Cmd):
         return stop
 
     def cmd_func(self, command):
-        """cmd2 2.x/3.x dispatch hook: resolve hyphenated command names.
+        """cmd2 3.x dispatch hook: resolve hyphenated command names.
 
         cmd2 < 4 dispatches through ``cmd_func()``; cmd2 4.x uses
         ``get_command_func()`` south of the same contract, so both hooks

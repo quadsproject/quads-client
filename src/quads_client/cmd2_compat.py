@@ -5,8 +5,8 @@ upgrade guide at https://cmd2.readthedocs.io/en/latest/upgrades/). The
 rest of the API surface this client uses - history kwargs,
 basic_complete/path_complete, statement attribution, and default() - is
 stable across those majors: the full test suite passes on both cmd2 3.5.1
-and 4.2.4 (cmd2 2.x is not supported: the client's argparse setup needs
-the Cmd2ArgumentParser API introduced in cmd2 3.0).
+and 4.2.4. The supported floor is cmd2 3.0 (3.x and 4.x are the tested,
+supported majors).
 
 The one interactive behavior that differs is the Ctrl-A Ctrl-A shortcut
 for session_switch: on cmd2 3.x it is a readline macro, on cmd2 4.x it has

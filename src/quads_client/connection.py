@@ -181,6 +181,8 @@ class ConnectionManager:
             if api_token:
                 # API token mode: bearer header set in __init__, no login() call needed
                 api = QuadsApi(base_url=url, username="", password="", verify=verify, api_token=api_token)
+                # Trace the connect handshake too when --debug is on (idempotent, no-op when off)
+                http_debug.install(api.session)
                 # Verify server is reachable
                 api.get_version()
                 self._api = api
@@ -201,6 +203,8 @@ class ConnectionManager:
             else:
                 # Normal mode: connect and login
                 api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
+                # Trace the connect handshake too when --debug is on (idempotent, no-op when off)
+                http_debug.install(api.session)
                 response = api.login()
 
                 if response.get("status") != "success":
@@ -215,7 +219,7 @@ class ConnectionManager:
                 # Try to decode role from token
                 self._user_role = self._decode_role_from_token()
 
-            # Attach HTTP debug tracing to the live session (no-op unless debug is on)
+            # Catch-all for the registration path (no handshake above); idempotent elsewhere
             http_debug.install(self._api.session)
 
         except Exception as e:
