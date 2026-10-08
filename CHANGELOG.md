@@ -1,6 +1,101 @@
 # CHANGELOG
 
 
+## v0.9.0 (2026-10-08)
+
+### Bug Fixes
+
+- Accept hyphenated CLI command names and correct SSL verify hint
+  ([`1c99533`](https://github.com/quadsproject/quads-client/commit/1c99533c102a820d4c1723960e8575b36399fdde))
+
+cmd2 commands are defined as do_<name_with_underscores>, so hyphenated spellings such as
+  'edit-server' fell through to default() and were rejected. Override default() to translate the
+  command token '-' to '_' and dispatch to the matching do_* method, leaving arguments (e.g. a
+  hostname like perf-lab) untouched; genuinely unknown commands still error. Also correct the SSL
+  error hint to suggest the working 'verify false' form instead of the never-parsed '--verify false'
+  flag.
+
+fixes: https://github.com/quadsproject/quads-client/issues/178
+
+- Make cmd2 dispatch and audit findings cross-version safe
+  ([`ac9627d`](https://github.com/quadsproject/quads-client/commit/ac9627dd6812529a5e806a20bb31e5cde56c0ec2))
+
+- Hyphenated command dispatch now also works on cmd2 3.x: get_command_func is a 4.x-only hook, so
+  cmd_func is overridden for 3.x too (verified: the feature was dead on 3.5.1). - response_error:
+  numeric-string status codes and bare message bodies are treated as errors; the self-assignment
+  success check requires only id (cloud falls back to unknown, matching quads-lib's own success
+  contract). - http_debug: redaction covers token/secret/api_key/authorization aliases and scrubs
+  URL userinfo and credential query parameters. - cli: --debug/-d is only stripped in the leading
+  global position, so a command argument equal to -d is no longer consumed. - cmd2 dependency floor
+  raised to >=3.0.0: 2.x was already unusable on main (Cmd2ArgumentParser color kwarg), so the
+  claimed 2.x support was incorrect. - Tests added for each; full suite green on cmd2 3.5.1 and
+  4.2.4.
+
+- Record hyphenated commands in history
+  ([`6f02b19`](https://github.com/quadsproject/quads-client/commit/6f02b1966e448d6b32d5b5f26d03d563fdb22198))
+
+Resolving hyphenated command names in get_command_func instead of dispatching from default() keeps
+  cmd2's normal onecmd flow, so hyphenated spellings like edit-server are recorded in command
+  history like their underscore form.
+
+fixes: https://github.com/quadsproject/quads-client/issues/178
+
+- Surface self-schedule errors instead of reporting false success
+  ([`8a501a1`](https://github.com/quadsproject/quads-client/commit/8a501a1d4af31ade3a8f62fbeceb9af262188990))
+
+cmd_schedule trusted the raw dicts returned by create_self_assignment and create_schedule. The lib
+  returns non-2xx bodies (401/403) as plain dicts, so a rejected write (e.g. invalid token) was
+  reported as "OK: Reserved N host(s)" with cloud/assignment "unknown" while nothing was created.
+  Add a response_error() helper and guard both swallow sites: bail out on a rejected self-assignment
+  (with a token hint) and skip, not count, hosts whose schedule write returns an error dict.
+
+fixes: https://github.com/quadsproject/quads-client/issues/183
+
+### Chores
+
+- Update RPM spec version to 0.8.11
+  ([`2cf0ff0`](https://github.com/quadsproject/quads-client/commit/2cf0ff068d1d751048c86dc85cdfac5874924872))
+
+- Update/re-order install docs
+  ([`dcc81e0`](https://github.com/quadsproject/quads-client/commit/dcc81e050b9431c399fbbf298ff84e23d2b02a99))
+
+### Features
+
+- Add verbose debug mode for HTTP request/response tracing
+  ([`24876fc`](https://github.com/quadsproject/quads-client/commit/24876fcbb1f0354908d67cd5996cc284e93fc980))
+
+Trace each QUADS API call (method, URL, status code, redacted body) to stderr when debug mode is on,
+  so non-raising failures can be diagnosed from the CLI. Reuses the existing cmd2 debug flag (set
+  debug true) and adds a global --debug/-d flag for one-shot and piped runs. A requests response
+  hook is attached to the live session on connect; secrets (Authorization header and password/token
+  fields in bodies) are never logged.
+
+fixes: https://github.com/quadsproject/quads-client/issues/177
+
+- Support cmd2 2.x through 4.x with a compatibility helper
+  ([`6abedad`](https://github.com/quadsproject/quads-client/commit/6abedad59ab6cdae365de6f039b46121af7808f3))
+
+cmd2 4.x replaced GNU Readline with prompt-toolkit for the REPL, so the readline Ctrl-A Ctrl-A macro
+  stopped switching sessions. bind_session_switch now registers the same double keybinding on the
+  prompt-toolkit session for cmd2 >= 4 and keeps the readline macro on 2.x/3.x, instead of pinning
+  cmd2 < 4. No upper bound is added back: everything else the client uses is stable across majors,
+  which the full suite proves on cmd2 3.5.1 and 4.2.4.
+
+fixes: https://github.com/quadsproject/quads-client/issues/185
+
+### Testing
+
+- Cover cmd2 dispatch hook fallback paths
+  ([`399c75e`](https://github.com/quadsproject/quads-client/commit/399c75ec68c5aacdbb3b6d7d9ed1de4a82bd58cb))
+
+The cmd_func/get_command_func overrides in QuadsClientShell translate hyphenated commands to
+  underscores, but on any single cmd2 major one of the two hooks is dead code, so codecov counted
+  those lines as uncovered on the development branch (70.37% patch, gate target 89.26%).
+
+Directly exercise both hooks with a stubbed parent (create=True) so the fallback paths are covered
+  on cmd2 3.x and 4.x alike. 1119 tests pass on cmd2 3.5.1 and 4.2.4.
+
+
 ## v0.8.11 (2026-08-28)
 
 ### Bug Fixes
