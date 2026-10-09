@@ -419,21 +419,20 @@ class CloudCommands:
                 self.shell.poutput("No clouds found")
                 return
 
-            free_clouds = []
+            # Fetch all current and future schedules once, then decide locally.
+            # A cloud is busy if it has any current or future schedule.
+            current_schedules = self.shell.connection.api.get_current_schedules({})
+            future_schedules = self.shell.connection.api.get_future_schedules({})
 
-            for cloud in clouds:
-                cloud_name = cloud.get("name")
+            busy_clouds = set()
+            for sched in list(current_schedules or []) + list(future_schedules or []):
+                cloud = sched.get("assignment", {}).get("cloud", {})
+                name = cloud.get("name") if isinstance(cloud, dict) else None
+                if name:
+                    busy_clouds.add(name)
 
-                # Skip cloud01 (spare pool)
-                if cloud_name == "cloud01":
-                    continue
-
-                # Check if cloud has current schedules
-                current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
-
-                # If no current schedules, cloud is free
-                if not current_schedules:
-                    free_clouds.append(cloud_name)
+            # Skip cloud01 (spare pool); a cloud is free when it is not busy
+            free_clouds = [cloud.get("name") for cloud in clouds if cloud.get("name") not in ("cloud01", *busy_clouds)]
 
             if free_clouds:
                 self.shell.poutput("Free clouds:")
