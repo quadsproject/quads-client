@@ -71,36 +71,10 @@ class AdminScheduleView(BaseAdminView):
         self._load_schedules()
 
     def _get_free_clouds(self):
-        """Get list of free clouds (no active assignments)"""
+        """Get list of free clouds (no active or future assignment)"""
         try:
-            clouds = self.shell.connection.api.get_clouds()
-            if not clouds:
-                return []
-
-            # Batch-fetch all active assignments in one call instead of per-cloud queries
-            assigned_clouds = set()
-            try:
-                all_assignments = self.shell.connection.api.filter_assignments({"active": True})
-                if all_assignments:
-                    for assignment in all_assignments:
-                        if isinstance(assignment, dict):
-                            cloud_obj = assignment.get("cloud", {})
-                            cname = cloud_obj.get("name") if isinstance(cloud_obj, dict) else str(cloud_obj)
-                            if cname:
-                                assigned_clouds.add(cname)
-            except Exception:
-                pass
-
-            free_clouds = []
-            for cloud in clouds:
-                cloud_name = cloud.get("name")
-                if cloud_name == "cloud01":
-                    continue
-                if cloud_name not in assigned_clouds:
-                    free_clouds.append(cloud_name)
-
-            return sorted(free_clouds)
-
+            # utilize quads-lib endpoint: get_free_clouds()
+            return [cloud.get("name") for cloud in (self.shell.connection.api.get_free_clouds() or [])]
         except Exception as e:
             self.update_status(f"Error getting free clouds: {e}")
             return []

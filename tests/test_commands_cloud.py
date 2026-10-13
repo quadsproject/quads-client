@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 from quads_client.commands.cloud import CloudCommands
 
 
@@ -260,32 +260,23 @@ def test_mod_cloud_with_invalid_os(mock_shell):
     assert "not found" in error_msg
 
 
-def _schedule_for(cloud_name):
-    return {"assignment": {"cloud": {"name": cloud_name}}}
-
-
 def test_find_free_cloud_free(mock_shell):
-    """Test find-free-cloud lists clouds without current or future schedules"""
+    """Test find-free-cloud lists the clouds returned by the server free endpoint"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.get_clouds.return_value = [{"name": "cloud01"}, {"name": "cloud02"}]
-    mock_shell.connection.api.get_current_schedules.return_value = []
-    mock_shell.connection.api.get_future_schedules.return_value = []
+    mock_shell.connection.api.get_free_clouds.return_value = [{"name": "cloud02"}, {"name": "cloud03"}]
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_find_free_cloud("")
 
-    # Schedules are fetched once, without a per-cloud filter
-    mock_shell.connection.api.get_current_schedules.assert_called_once_with({})
-    mock_shell.connection.api.get_future_schedules.assert_called_once_with({})
+    mock_shell.connection.api.get_free_clouds.assert_called_once_with()
     mock_shell.poutput.assert_any_call("  cloud02")
+    mock_shell.poutput.assert_any_call("  cloud03")
 
 
-def test_find_free_cloud_excludes_future_schedule(mock_shell):
-    """Test find-free-cloud excludes a cloud that has a future schedule"""
+def test_find_free_cloud_none(mock_shell):
+    """Test find-free-cloud reports when the server returns no free clouds"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.get_clouds.return_value = [{"name": "cloud02"}]
-    mock_shell.connection.api.get_current_schedules.return_value = []
-    mock_shell.connection.api.get_future_schedules.return_value = [_schedule_for("cloud02")]
+    mock_shell.connection.api.get_free_clouds.return_value = []
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_find_free_cloud("")
@@ -293,12 +284,10 @@ def test_find_free_cloud_excludes_future_schedule(mock_shell):
     mock_shell.poutput.assert_called_with("No free clouds available")
 
 
-def test_find_free_cloud_excludes_current_schedule(mock_shell):
-    """Test find-free-cloud excludes a cloud that has a current schedule"""
+def test_find_free_cloud_null_response(mock_shell):
+    """Test find-free-cloud tolerates a null response from the server"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.get_clouds.return_value = [{"name": "cloud02"}]
-    mock_shell.connection.api.get_current_schedules.return_value = [_schedule_for("cloud02")]
-    mock_shell.connection.api.get_future_schedules.return_value = []
+    mock_shell.connection.api.get_free_clouds.return_value = None
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_find_free_cloud("")
@@ -306,21 +295,27 @@ def test_find_free_cloud_excludes_current_schedule(mock_shell):
     mock_shell.poutput.assert_called_with("No free clouds available")
 
 
-def test_find_free_cloud_mixed(mock_shell):
-    """Test find-free-cloud with a mix of busy and free clouds"""
+def test_find_free_cloud_error(mock_shell):
+    """Test find-free-cloud surfaces errors from the server call"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.get_clouds.return_value = [
-        {"name": "cloud01"},
-        {"name": "cloud02"},
-        {"name": "cloud03"},
-        {"name": "cloud04"},
-    ]
-    mock_shell.connection.api.get_current_schedules.return_value = [_schedule_for("cloud02")]
-    mock_shell.connection.api.get_future_schedules.return_value = [_schedule_for("cloud03")]
+    mock_shell.connection.api.get_free_clouds.side_effect = Exception("boom")
 
     cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.rich_console = None
     cloud_cmd.cmd_find_free_cloud("")
 
-    mock_shell.poutput.assert_any_call("  cloud04")
-    assert call("  cloud02") not in mock_shell.poutput.call_args_list
-    assert call("  cloud03") not in mock_shell.poutput.call_args_list
+    mock_shell.perror.assert_called()
+    assert "Failed to find free clouds" in mock_shell.perror.call_args[0][0]
+
+
+def test_find_free_cloud_error_rich_console(mock_shell):
+    """Test find-free-cloud routes errors through the rich console when present"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_free_clouds.side_effect = Exception("landmine found")
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.rich_console = MagicMock()
+    cloud_cmd.cmd_find_free_cloud("")
+
+    cloud_cmd.rich_console.print_error.assert_called_once()
+    assert "Failed to find free clouds" in cloud_cmd.rich_console.print_error.call_args[0][0]
