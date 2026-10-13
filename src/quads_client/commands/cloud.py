@@ -413,26 +413,8 @@ class CloudCommands:
             return
 
         try:
-            # Get all clouds
-            clouds = self.shell.connection.api.get_clouds()
-            if not clouds:
-                self.shell.poutput("No clouds found")
-                return
-
-            # Fetch all current and future schedules once, then decide locally.
-            # A cloud is busy if it has any current or future schedule.
-            current_schedules = self.shell.connection.api.get_current_schedules({})
-            future_schedules = self.shell.connection.api.get_future_schedules({})
-
-            busy_clouds = set()
-            for sched in list(current_schedules or []) + list(future_schedules or []):
-                cloud = sched.get("assignment", {}).get("cloud", {})
-                name = cloud.get("name") if isinstance(cloud, dict) else None
-                if name:
-                    busy_clouds.add(name)
-
-            # Skip cloud01 (spare pool); a cloud is free when it is not busy
-            free_clouds = [cloud.get("name") for cloud in clouds if cloud.get("name") not in ("cloud01", *busy_clouds)]
+            # utilize quads-lib endpoint: get_free_clouds()
+            free_clouds = [cloud.get("name") for cloud in (self.shell.connection.api.get_free_clouds() or [])]
 
             if free_clouds:
                 self.shell.poutput("Free clouds:")
