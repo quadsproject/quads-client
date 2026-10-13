@@ -12,10 +12,7 @@ class TestAdminScheduleValidation(unittest.TestCase):
         self.api = Mock()
 
     def _validate_hosts_availability(self, hostnames, start_date, end_date):
-        """Extracted validation logic from AdminScheduleView for testing
-
-        This is a copy of the validation method to allow testing without GUI dependencies
-        """
+        """Extracted validation logic from AdminScheduleView for testing"""
         errors = []
 
         for hostname in hostnames:
@@ -182,6 +179,123 @@ class TestAdminScheduleValidation(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("error-host.example.com", errors[0])
         self.assertIn("Error checking", errors[0])
+
+
+class TestAdminScheduleFreeClouds(unittest.TestCase):
+    """Test free cloud selection in admin schedule view"""
+
+    def setUp(self):
+        """Set up test fixtures"""
+        self.api = Mock()
+
+    def _get_free_clouds(self):
+        """Extracted free cloud logic from AdminScheduleView for testing"""
+        from quads_client.utils import extract_cloud_number
+
+        try:
+            names = [cloud.get("name") for cloud in (self.api.get_free_clouds() or [])]
+            return sorted(names, key=extract_cloud_number)
+        except Exception:
+            return []
+
+    def test_free_clouds_sorted_numerically(self):
+        """Free clouds are sorted by cloud number, not lexically"""
+        self.api.get_free_clouds = Mock(return_value=[{"name": "cloud10"}, {"name": "cloud2"}, {"name": "cloud1"}])
+
+        result = self._get_free_clouds()
+
+        self.assertEqual(result, ["cloud1", "cloud2", "cloud10"])
+
+    def test_free_clouds_first_is_next_free(self):
+        """First entry is the lowest-numbered free cloud (next free for ssm)"""
+        self.api.get_free_clouds = Mock(return_value=[{"name": "cloud09"}, {"name": "cloud03"}])
+
+        result = self._get_free_clouds()
+
+        self.assertEqual(result[0], "cloud03")
+
+    def test_free_clouds_empty(self):
+        """No free clouds returns an empty list"""
+        self.api.get_free_clouds = Mock(return_value=[])
+
+        self.assertEqual(self._get_free_clouds(), [])
+
+    def test_free_clouds_none_response(self):
+        """A None response is treated as no free clouds"""
+        self.api.get_free_clouds = Mock(return_value=None)
+
+        self.assertEqual(self._get_free_clouds(), [])
+
+
+class TestAdminScheduleUtilsImports(unittest.TestCase):
+    """Guard the helpers AdminScheduleView imports at module load"""
+
+    def test_required_utils_helpers_exist(self):
+        """extract_assignment_id, extract_cloud_name, extract_cloud_number import"""
+        from quads_client.utils import (
+            extract_assignment_id,
+            extract_cloud_name,
+            extract_cloud_number,
+        )
+
+        self.assertTrue(callable(extract_assignment_id))
+        self.assertTrue(callable(extract_cloud_name))
+        self.assertTrue(callable(extract_cloud_number))
+
+
+class TestAdminScheduleLoad(unittest.TestCase):
+    """Test the schedule fetch/display mapping in admin schedule view"""
+
+    def _build_rows(self, assignments):
+        """Extracted on_loaded row-building from AdminScheduleView for testing
+
+        Mirrors the view method (tkinter is unavailable headless) while
+        exercising the real extract_assignment_id / extract_cloud_name helpers.
+        """
+        from quads_client.utils import extract_assignment_id, extract_cloud_name
+
+        rows = []
+        if not assignments:
+            return rows
+
+        for assignment in assignments:
+            if isinstance(assignment, dict):
+                assignment_id = extract_assignment_id(assignment)
+                cloud_name = extract_cloud_name(assignment)
+                description = assignment.get("description", "No description")
+                owner = assignment.get("owner", "N/A")
+                validated = "✓" if assignment.get("validated") else "○"
+                rows.append((assignment_id, cloud_name, description, owner, validated))
+
+        return rows
+
+    def test_load_maps_assignments_to_rows(self):
+        """Fetched assignments are mapped to display rows"""
+        assignments = [
+            {"id": 7, "cloud": {"name": "cloud03"}, "description": "demo", "owner": "alice", "validated": True},
+        ]
+
+        rows = self._build_rows(assignments)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], 7)
+        self.assertEqual(rows[0][1], "cloud03")
+        self.assertEqual(rows[0][2], "demo")
+        self.assertEqual(rows[0][3], "alice")
+        self.assertEqual(rows[0][4], "✓")
+
+    def test_load_uses_defaults_for_missing_fields(self):
+        """Missing optional fields fall back to defaults"""
+        rows = self._build_rows([{"id": 1, "cloud": {"name": "cloud01"}}])
+
+        self.assertEqual(rows[0][2], "No description")
+        self.assertEqual(rows[0][3], "N/A")
+        self.assertEqual(rows[0][4], "○")
+
+    def test_load_empty_assignments(self):
+        """No assignments produces no rows"""
+        self.assertEqual(self._build_rows([]), [])
+        self.assertEqual(self._build_rows(None), [])
 
 
 if __name__ == "__main__":

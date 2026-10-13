@@ -32,7 +32,7 @@ BuildRequires: python3-setuptools
 BuildRequires: desktop-file-utils
 Requires: python3 >= 3.13
 Requires: python3-cmd2 >= 2.0.0
-Requires: quads-lib >= 0.1.9
+Requires: quads-lib >= 0.1.18
 Requires: python3-tabulate >= 0.9.0
 Requires: python3-argcomplete >= 3.1.2
 Requires: python3-PyYAML >= 6.0.0
