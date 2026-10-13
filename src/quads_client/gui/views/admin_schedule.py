@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from quads_client.gui.widgets.base import BaseAdminView, ScrolledTreeview, FormDialog
 from quads_client.gui.widgets.date_picker import DatePickerDialog, get_next_sunday_22utc, get_two_weeks_sunday_22utc
+from quads_client.utils import extract_assignment_id, extract_cloud_name, extract_cloud_number
 
 
 class AdminScheduleView(BaseAdminView):
@@ -71,17 +72,17 @@ class AdminScheduleView(BaseAdminView):
         self._load_schedules()
 
     def _get_free_clouds(self):
-        """Get list of free clouds (no active or future assignment)"""
+        """Get list of free clouds (no active assignment)"""
         try:
             # utilize quads-lib endpoint: get_free_clouds()
-            return [cloud.get("name") for cloud in (self.shell.connection.api.get_free_clouds() or [])]
+            names = [cloud.get("name") for cloud in (self.shell.connection.api.get_free_clouds() or [])]
+            return sorted(names, key=extract_cloud_number)
         except Exception as e:
             self.update_status(f"Error getting free clouds: {e}")
             return []
 
     def _load_schedules(self):
         """Load all active assignments from server"""
-        from quads_client.utils import extract_assignment_id, extract_cloud_name
 
         def load_data():
             filters = {"active": True}
