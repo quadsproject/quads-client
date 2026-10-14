@@ -898,6 +898,7 @@ cloud_only <cloud_name>                            - List all hosts assigned to 
 ls_vlan                                            - List VLANs with assigned clouds
 os_list                                            - List available operating systems
 ```
+- find_free_cloud requires a QUADS server 2.1 or newer (clouds/free API); older servers return an error
 
 **Examples:**
 ```bash
