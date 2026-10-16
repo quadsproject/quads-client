@@ -1105,7 +1105,7 @@ class QuadsClientShell(cmd2.Cmd):
             "rm_server",
             "config_reload",
         ]
-        cmd_name = cmd_str.split()[0] if cmd_str else ""
+        cmd_name = cmd_str.split()[0].replace("-", "_") if cmd_str else ""
 
         # Skip auto-connect for commands that don't need it
         if cmd_name in no_connection_cmds:
