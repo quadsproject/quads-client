@@ -71,3 +71,6 @@ jobs:
       - name: Lint with flake8
         run: |
           flake8 .
+
+      - name: Self-test the Copr release helper
+        run: python3 .github/scripts/copr_release_urls.py --self-test
