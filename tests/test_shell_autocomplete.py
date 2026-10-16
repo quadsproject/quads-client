@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
+from quads_client.cmd2_compat import CMD2_MAJOR
 from quads_client.shell import QuadsClientShell
 from tests.helpers import completions_to_list as _to_list
 
@@ -156,3 +157,47 @@ def test_complete_ls_available_no_match():
             completions = shell.complete_ls_available("xyz", "ls_available xyz", 13, 16)
 
             assert _to_list(completions) == []
+
+
+def _command_token_candidates(shell, text):
+    """Command-token candidates for `text` on either cmd2 major.
+
+    cmd2 3.x yields one match per state through the readline-style API; cmd2 4.x
+    returns the matches for the whole line in a single call.
+    """
+    if CMD2_MAJOR >= 4:
+        return _to_list(shell.complete(text, text, 0, len(text)))
+    matches = []
+    index = 0
+    while (match := shell.complete(text, index)) is not None:
+        matches.append(match.strip())
+        index += 1
+    return matches
+
+
+def test_hyphenated_command_prefix_completes():
+    """Hyphenated command prefixes complete to the hyphenated spelling"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+
+            assert "edit-server" in _command_token_candidates(shell, "edit-s")
+
+
+def test_underscore_command_prefix_completes():
+    """Underscore prefixes keep completing after the hyphenated variants are added"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+
+            assert "edit_server" in _command_token_candidates(shell, "edit_")
+
+
+def test_invisible_commands_have_no_hyphenated_completion():
+    """Hidden and private cmd2 commands gain no hyphenated completion candidate"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+
+            assert _command_token_candidates(shell, "cloud-c") == []
+            assert _command_token_candidates(shell, "-") == []
