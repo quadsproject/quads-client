@@ -137,6 +137,56 @@ class QuadsClientShell(cmd2.Cmd):
             func = parent(command.replace("-", "_"))
         return func
 
+    def _hyphenated_command_spellings(self, known):
+        """Yield (underscore, hyphenated) spellings for visible underscore commands.
+
+        A hyphenated variant is only offered when the underscore command itself
+        is already in ``known``, so hidden commands stay hidden either way; the
+        private ``_``-prefixed cmd2 internals (``_eof``) are skipped so no
+        untypable ``-eof``-style candidates surface.
+        """
+        for command in self.get_visible_commands():
+            if command.startswith("_") or "_" not in command or command not in known:
+                continue
+            hyphenated = command.replace("_", "-")
+            if hyphenated not in known:
+                yield command, hyphenated
+
+    def _get_commands_aliases_and_macros_for_completion(self):
+        """cmd2 3.x command-token completion: add hyphenated command names.
+
+        cmd2 < 4 completes the command token from this hook's list of visible
+        commands, aliases, and macros; ``cmd_func()`` resolves the hyphenated
+        spelling, so listing it here makes 'edit-s' complete on 3.x too.
+        """
+        parent = getattr(super(), "_get_commands_aliases_and_macros_for_completion", None)
+        if parent is None:
+            return None
+        names = list(parent())
+        known = set(names)
+        for _, hyphenated in self._hyphenated_command_spellings(known):
+            names.append(hyphenated)
+        return names
+
+    def _get_commands_aliases_and_macros_choices(self):
+        """cmd2 4.x command-token completion: add hyphenated command names.
+
+        cmd2 4.x completes the command token from this hook's Choices; add the
+        hyphenated spelling for each visible underscore command so 'edit-s'
+        completes to 'edit-server' while underscore completion keeps working.
+        """
+        parent = getattr(super(), "_get_commands_aliases_and_macros_choices", None)
+        if parent is None:
+            return None
+        # Choices is 4.x-only; CompletionItem here is the 4.x dataclass
+        from cmd2 import Choices, CompletionItem
+
+        items = list(parent().items)
+        by_name = {item.text: item for item in items}
+        for command, hyphenated in self._hyphenated_command_spellings(set(by_name)):
+            items.append(CompletionItem(hyphenated, display_meta=by_name[command].display_meta))
+        return Choices(items=items)
+
     def _get_activity_indicator(self):
         if not self.connection or not self.connection.is_authenticated:
             return ""
