@@ -1,0 +1,143 @@
+name: Link Release Packages
+
+on:
+  workflow_run:
+    workflows: ["Semantic Release"]
+    types:
+      - completed
+
+concurrency:
+  group: release-packages
+  queue: max
+
+jobs:
+  release_packages:
+    name: Link packages in release notes
+    # Deliberately not gated on the conclusion of the run: a release whose
+    # workflow failed at a later step still gets its package links.
+    if: github.repository == 'quadsproject/quads-client'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The RPMs are built outside CI, from the spec bump sync-back.yml pushes,
+      # and the SRPM is uploaded by hand, so this waits for the Copr build of
+      # the tagged version instead of requiring it to exist already. The URLs
+      # come from each chroot's repository metadata, because Copr's Pulp
+      # backend serves the files without listing them in the download index.
+      - name: Append package links to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          script=".github/scripts/copr_release_urls.py"
+          if [[ ! -f "$script" ]]; then
+            echo "main predates the release helper; no package links"
+            exit 0
+          fi
+          python3 "$script" --self-test
+          git fetch --tags --force --quiet origin
+          # The release a run cut is the oldest tag containing the run's head
+          # commit: a later tag contains that commit too, so the oldest one
+          # names this run's release and a re-run picks the same one.
+          tag="$(git for-each-ref --contains "$HEAD_SHA" --sort=creatordate --count=1 --format='%(refname:short)' refs/tags/)"
+          if [[ -z "$tag" ]]; then
+            echo "no tag contains $HEAD_SHA, so this run cut no release"
+            exit 0
+          fi
+          # Release bodies are stored with CRLF in this repository, and the
+          # carriage returns are stripped before the heading is matched. The
+          # check reads the body through process substitution so that pipefail
+          # cannot mistake grep's early exit for a missing section.
+          lists_packages() { grep -q '^## Packages$' <(tr -d '\r' < body.md); }
+          if ! gh release view "$tag" --json body -q .body > body.md; then
+            echo "::error title=no GitHub release for $tag::Create the release for $tag, then re-run this job."
+            exit 1
+          fi
+          if lists_packages; then
+            echo "$tag already lists its packages"
+            exit 0
+          fi
+          version="${tag#v}"
+          artifacts_out=""
+          error_out=""
+          lookup_status=0
+          unreadable=0
+          # The upload is manual and has taken hours, so wait for the build
+          # instead of requiring it once. Exit 1 is "nothing published yet" and
+          # is worth the whole window; exit 2 is "the answer could not be
+          # determined", which is worth twenty attempts in a row; any other
+          # answer, such as a build that cannot publish, stops the wait.
+          for attempt in $(seq 1 480); do
+            lookup_status=0
+            artifacts_out="$(python3 "$script" urls "$version" 2>lookup.err)" || lookup_status=$?
+            error_out="$(tail -n1 lookup.err)"
+            if [[ "$lookup_status" == 0 ]]; then
+              break
+            fi
+            artifacts_out=""
+            echo "attempt $attempt for $version: $error_out" >&2
+            if [[ "$lookup_status" == 1 ]]; then
+              unreadable=0
+            elif [[ "$lookup_status" == 2 ]]; then
+              unreadable=$((unreadable + 1))
+              [[ "$unreadable" -lt 20 ]] || break
+            else
+              break
+            fi
+            sleep 30
+          done
+          if [[ -z "$artifacts_out" ]]; then
+            cat lookup.err >&2
+            if [[ "$lookup_status" == 3 ]]; then
+              echo "$version: the Copr build did not succeed: $error_out" >&2
+              echo "::error title=quads-client $version failed to build::$error_out"
+              echo "Fix the build in quadsdev/python3-quads, then re-run this job." >&2
+            elif [[ "$lookup_status" == 2 ]]; then
+              echo "$version: the packages could not be looked up: $error_out" >&2
+              echo "::error title=quads-client $version lookup failed::$error_out"
+              echo "Re-run this job once the Copr API answers; do not resubmit the SRPM." >&2
+            else
+              echo "$version has no published package, last error: $error_out" >&2
+              echo "::error title=quads-client $version is not published::$error_out"
+              echo "Build and upload the SRPM to quadsdev/python3-quads, then re-run this job." >&2
+            fi
+            exit 1
+          fi
+          if [[ -s lookup.err ]]; then
+            cat lookup.err >&2
+          fi
+          mapfile -t artifacts <<< "$artifacts_out"
+          # The notes can have been edited while the build was awaited, so read
+          # them again before writing and leave a linked release alone.
+          gh release view "$tag" --json body -q .body > body.md
+          if lists_packages; then
+            echo "$tag already lists its packages"
+            exit 0
+          fi
+          {
+            echo
+            echo "## Packages"
+            echo
+            echo "Enable the repository and install:"
+            echo
+            echo '```'
+            echo "sudo dnf copr enable quadsdev/python3-quads"
+            echo "sudo dnf install quads-client"
+            echo '```'
+            echo
+            echo "Artifacts:"
+            echo
+            for artifact in "${artifacts[@]}"; do
+              echo "- \`$artifact\`"
+            done
+          } >> body.md
+          gh release edit "$tag" --notes-file body.md
+          echo "linked ${#artifacts[@]} artifacts in $tag"
