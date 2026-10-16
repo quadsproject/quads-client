@@ -1,6 +1,13 @@
 import pytest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 from quads_client.commands.cloud import CloudCommands
+
+
+def _assert_no_client_side_schedule_fold(mock_shell):
+    """find_free_cloud must trust the server free-clouds endpoint only."""
+    mock_shell.connection.api.get_current_schedules.assert_not_called()
+    mock_shell.connection.api.get_future_schedules.assert_not_called()
+    mock_shell.connection.api.get_clouds.assert_not_called()
 
 
 def test_cloud_list_success(mock_shell):
@@ -258,3 +265,82 @@ def test_mod_cloud_with_invalid_os(mock_shell):
     mock_shell.perror.assert_called()
     error_msg = mock_shell.perror.call_args[0][0]
     assert "not found" in error_msg
+
+
+def test_find_free_cloud_free(mock_shell):
+    """Test find-free-cloud lists the clouds returned by the server free endpoint"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_free_clouds.return_value = [{"name": "cloud02"}, {"name": "cloud03"}]
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_find_free_cloud("")
+
+    mock_shell.connection.api.get_free_clouds.assert_called_once_with()
+    mock_shell.poutput.assert_any_call("  cloud02")
+    mock_shell.poutput.assert_any_call("  cloud03")
+    _assert_no_client_side_schedule_fold(mock_shell)
+
+
+def test_find_free_cloud_passes_through_spare_pool(mock_shell):
+    """The client does no client-side filtering; the server is the source of truth"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_free_clouds.return_value = [{"name": "cloud01"}]
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_find_free_cloud("")
+
+    mock_shell.connection.api.get_free_clouds.assert_called_once_with()
+    mock_shell.poutput.assert_any_call("  cloud01")
+    _assert_no_client_side_schedule_fold(mock_shell)
+
+
+def test_find_free_cloud_none(mock_shell):
+    """Test find-free-cloud reports when the server returns no free clouds"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_free_clouds.return_value = []
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_find_free_cloud("")
+
+    mock_shell.poutput.assert_called_with("No free clouds available")
+    _assert_no_client_side_schedule_fold(mock_shell)
+
+
+def test_find_free_cloud_null_response(mock_shell):
+    """Test find-free-cloud tolerates a null response from the server"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_free_clouds.return_value = None
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_find_free_cloud("")
+
+    mock_shell.poutput.assert_called_with("No free clouds available")
+    _assert_no_client_side_schedule_fold(mock_shell)
+
+
+def test_find_free_cloud_error(mock_shell):
+    """Test find-free-cloud surfaces errors from the server call"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_free_clouds.side_effect = Exception("boom")
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.rich_console = None
+    cloud_cmd.cmd_find_free_cloud("")
+
+    mock_shell.perror.assert_called()
+    assert "Failed to find free clouds" in mock_shell.perror.call_args[0][0]
+    _assert_no_client_side_schedule_fold(mock_shell)
+
+
+def test_find_free_cloud_error_rich_console(mock_shell):
+    """Test find-free-cloud routes errors through the rich console when present"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_free_clouds.side_effect = Exception("landmine found")
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.rich_console = MagicMock()
+    cloud_cmd.cmd_find_free_cloud("")
+
+    cloud_cmd.rich_console.print_error.assert_called_once()
+    assert "Failed to find free clouds" in cloud_cmd.rich_console.print_error.call_args[0][0]
+    _assert_no_client_side_schedule_fold(mock_shell)

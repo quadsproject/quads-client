@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from quads_client.gui.widgets.base import BaseAdminView, ScrolledTreeview, FormDialog
 from quads_client.gui.widgets.date_picker import DatePickerDialog, get_next_sunday_22utc, get_two_weeks_sunday_22utc
+from quads_client.utils import extract_assignment_id, extract_cloud_name, extract_cloud_number
 
 
 class AdminScheduleView(BaseAdminView):
@@ -71,43 +72,17 @@ class AdminScheduleView(BaseAdminView):
         self._load_schedules()
 
     def _get_free_clouds(self):
-        """Get list of free clouds (no active assignments)"""
+        """Get list of free clouds (no active assignment)"""
         try:
-            clouds = self.shell.connection.api.get_clouds()
-            if not clouds:
-                return []
-
-            # Batch-fetch all active assignments in one call instead of per-cloud queries
-            assigned_clouds = set()
-            try:
-                all_assignments = self.shell.connection.api.filter_assignments({"active": True})
-                if all_assignments:
-                    for assignment in all_assignments:
-                        if isinstance(assignment, dict):
-                            cloud_obj = assignment.get("cloud", {})
-                            cname = cloud_obj.get("name") if isinstance(cloud_obj, dict) else str(cloud_obj)
-                            if cname:
-                                assigned_clouds.add(cname)
-            except Exception:
-                pass
-
-            free_clouds = []
-            for cloud in clouds:
-                cloud_name = cloud.get("name")
-                if cloud_name == "cloud01":
-                    continue
-                if cloud_name not in assigned_clouds:
-                    free_clouds.append(cloud_name)
-
-            return sorted(free_clouds)
-
+            # utilize quads-lib endpoint: get_free_clouds()
+            names = [cloud.get("name") for cloud in (self.shell.connection.api.get_free_clouds() or [])]
+            return sorted(names, key=extract_cloud_number)
         except Exception as e:
             self.update_status(f"Error getting free clouds: {e}")
             return []
 
     def _load_schedules(self):
         """Load all active assignments from server"""
-        from quads_client.utils import extract_assignment_id, extract_cloud_name
 
         def load_data():
             filters = {"active": True}

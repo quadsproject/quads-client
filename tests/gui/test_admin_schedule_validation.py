@@ -3,6 +3,42 @@
 import unittest
 from unittest.mock import Mock
 
+from quads_client.gui.views.admin_schedule import AdminScheduleView
+
+
+def make_view(api):
+    view = AdminScheduleView.__new__(AdminScheduleView)
+    view.shell = Mock()
+    view.shell.connection.api = api
+    view.update_status = Mock()
+    return view
+
+
+class TestGetFreeClouds(unittest.TestCase):
+    def test_numeric_order(self):
+        api = Mock()
+        api.get_free_clouds.return_value = [{"name": "cloud10"}, {"name": "cloud1"}, {"name": "cloud2"}]
+        self.assertEqual(make_view(api)._get_free_clouds(), ["cloud1", "cloud2", "cloud10"])
+
+    def test_null_response(self):
+        api = Mock()
+        api.get_free_clouds.return_value = None
+        self.assertEqual(make_view(api)._get_free_clouds(), [])
+
+    def test_error_reports_status(self):
+        api = Mock()
+        api.get_free_clouds.side_effect = Exception("server unreachable")
+        view = make_view(api)
+        self.assertEqual(view._get_free_clouds(), [])
+        view.update_status.assert_called_once()
+
+    def test_no_client_side_filtering(self):
+        api = Mock()
+        api.get_free_clouds.return_value = [{"name": "cloud01"}]
+        self.assertEqual(make_view(api)._get_free_clouds(), ["cloud01"])
+        api.get_clouds.assert_not_called()
+        api.filter_assignments.assert_not_called()
+
 
 class TestAdminScheduleValidation(unittest.TestCase):
     """Test hostname validation in admin schedule view"""
@@ -12,10 +48,7 @@ class TestAdminScheduleValidation(unittest.TestCase):
         self.api = Mock()
 
     def _validate_hosts_availability(self, hostnames, start_date, end_date):
-        """Extracted validation logic from AdminScheduleView for testing
-
-        This is a copy of the validation method to allow testing without GUI dependencies
-        """
+        """Extracted validation logic from AdminScheduleView for testing"""
         errors = []
 
         for hostname in hostnames:

@@ -865,6 +865,9 @@ rm_server quads3     - Remove server from configuration
 config_reload        - Reload configuration from file
 ```
 
+> [!NOTE]
+> Hyphenated spellings are also accepted for all commands, e.g. `edit-server` instead of `edit_server`. Both forms work; the hyphenated form matches the spelling used in connection error hints.
+
 **Adding a server (interactive method)**:
 ```bash
 add_quads_server
@@ -898,6 +901,7 @@ cloud_only <cloud_name>                            - List all hosts assigned to 
 ls_vlan                                            - List VLANs with assigned clouds
 os_list                                            - List available operating systems
 ```
+- find_free_cloud requires a QUADS server 2.1 or newer (clouds/free API); older servers return an error
 
 **Examples:**
 ```bash
@@ -1305,7 +1309,7 @@ quads-client/
 
 - Python >= 3.13
 - cmd2 >= 2.0.0
-- quads-lib >= 0.1.15
+- quads-lib >= 0.1.18
 - PyYAML >= 6.0.0
 - argcomplete >= 3.1.2
 - tabulate >= 0.9.0

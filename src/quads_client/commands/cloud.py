@@ -413,27 +413,8 @@ class CloudCommands:
             return
 
         try:
-            # Get all clouds
-            clouds = self.shell.connection.api.get_clouds()
-            if not clouds:
-                self.shell.poutput("No clouds found")
-                return
-
-            free_clouds = []
-
-            for cloud in clouds:
-                cloud_name = cloud.get("name")
-
-                # Skip cloud01 (spare pool)
-                if cloud_name == "cloud01":
-                    continue
-
-                # Check if cloud has current schedules
-                current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
-
-                # If no current schedules, cloud is free
-                if not current_schedules:
-                    free_clouds.append(cloud_name)
+            # utilize quads-lib endpoint: get_free_clouds()
+            free_clouds = [cloud.get("name") for cloud in (self.shell.connection.api.get_free_clouds() or [])]
 
             if free_clouds:
                 self.shell.poutput("Free clouds:")
