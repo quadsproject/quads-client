@@ -347,3 +347,52 @@ def test_get_command_func_resolves_hyphens_via_parent():
                 func = shell.get_command_func("edit-server")
 
             assert func == target
+
+
+def test_commands_completion_no_parent_returns_none():
+    """cmd2 4.x: without a completion-list parent the 3.x hook is inert"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+            with patch.object(cmd2.Cmd, "_get_commands_aliases_and_macros_for_completion", None, create=True):
+                assert shell._get_commands_aliases_and_macros_for_completion() is None
+
+
+def test_commands_completion_adds_hyphenated_names_via_parent():
+    """cmd2 3.x path: the completion hook adds hyphenated names via the parent hook"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+
+            def fake_parent(self):
+                return ["edit_server", "connect"]
+
+            with patch.object(cmd2.Cmd, "_get_commands_aliases_and_macros_for_completion", fake_parent, create=True):
+                names = shell._get_commands_aliases_and_macros_for_completion()
+
+            assert "edit_server" in names
+            assert "edit-server" in names
+
+
+def test_commands_completion_keeps_existing_hyphenated_names():
+    """An existing hyphenated name is not duplicated by the completion hook"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+
+            def fake_parent(self):
+                return ["edit_server", "edit-server"]
+
+            with patch.object(cmd2.Cmd, "_get_commands_aliases_and_macros_for_completion", fake_parent, create=True):
+                names = shell._get_commands_aliases_and_macros_for_completion()
+
+            assert names.count("edit-server") == 1
+
+
+def test_commands_choices_no_parent_returns_none():
+    """cmd2 3.x: without a Choices parent the 4.x hook is inert"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+            with patch.object(cmd2.Cmd, "_get_commands_aliases_and_macros_choices", None, create=True):
+                assert shell._get_commands_aliases_and_macros_choices() is None
