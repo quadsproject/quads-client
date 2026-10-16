@@ -95,6 +95,20 @@ class TestAutoConnect:
         assert result is True
         mock_shell.config.get_default_server.assert_not_called()
 
+    def test_auto_connect_skipped_for_hyphenated_server_command(self, mock_shell):
+        """Test auto-connect is skipped for hyphenated server management commands"""
+        from quads_client.shell import QuadsClientShell
+
+        shell = QuadsClientShell.__new__(QuadsClientShell)
+        shell.config = mock_shell.config
+        shell.session_manager = None
+        shell.perror = mock_shell.perror
+
+        result = shell._auto_connect_for_oneshot("edit-server quads3 verify false")
+
+        assert result is True
+        mock_shell.config.get_default_server.assert_not_called()
+
     def test_auto_connect_when_already_connected(self, mock_shell):
         """Test auto-connect returns True when already connected"""
         from quads_client.shell import QuadsClientShell
