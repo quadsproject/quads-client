@@ -276,7 +276,7 @@ def test_unknown_hyphenated_command_errors():
             shell.onecmd("bogus-command foo")
 
             shell.perror.assert_called_once()
-            assert "not a recognized command" in str(shell.perror.call_args)
+            assert "bogus-command" in shell.perror.call_args[0][0]
 
 
 def test_hyphenated_command_recorded_in_history():

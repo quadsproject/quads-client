@@ -865,6 +865,9 @@ rm_server quads3     - Remove server from configuration
 config_reload        - Reload configuration from file
 ```
 
+> [!NOTE]
+> Hyphenated spellings are also accepted for all commands, e.g. `edit-server` instead of `edit_server`. Both forms work; the hyphenated form matches the spelling used in connection error hints.
+
 **Adding a server (interactive method)**:
 ```bash
 add_quads_server
