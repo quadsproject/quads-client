@@ -641,6 +641,74 @@ class TestBatchScheduleEndpoint:
         assert batch_data["vlan"] == 1234
         assert batch_data["qinq"] == 1
 
+    def test_schedule_admin_dates_after_options(self, mock_shell):
+        """Test dates are accepted after options, matching reported usage"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = True
+        mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud06"}]
+        mock_shell.connection.api.is_available.return_value = True
+        mock_shell.connection.api.create_schedules_batch.return_value = {
+            "assignment_id": 42,
+            "schedules_created": 1,
+            "hostnames": ["host01.example.com"],
+            "jira_updated": False,
+        }
+
+        schedule_cmd = ScheduleCommands(mock_shell)
+        schedule_cmd.cmd_schedule_admin(
+            "cloud06 host01.example.com cloud-owner wfoster "
+            'vlan 619 cloud-ticket 6319 description "QUADS304 Test" '
+            '"2026-11-03 09:10" "2026-11-03 12:10"'
+        )
+
+        batch_data = mock_shell.connection.api.create_schedules_batch.call_args[0][0]
+        assert batch_data["start"] == "2026-11-03 09:10"
+        assert batch_data["end"] == "2026-11-03 12:10"
+        assert batch_data["description"] == "QUADS304 Test"
+        assert batch_data["owner"] == "wfoster"
+        assert batch_data["ticket"] == "6319"
+
+    def test_schedule_admin_single_date_defaults_start_now(self, mock_shell):
+        """Test a single date is the end date with start defaulting to now"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = True
+        mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud06"}]
+        mock_shell.connection.api.create_schedules_batch.return_value = {
+            "assignment_id": 42,
+            "schedules_created": 1,
+            "hostnames": ["host01.example.com"],
+            "jira_updated": False,
+        }
+
+        schedule_cmd = ScheduleCommands(mock_shell)
+        schedule_cmd.cmd_schedule_admin(
+            "cloud06 host01.example.com cloud-owner wfoster "
+            'vlan 619 cloud-ticket 6319 description "QUADS304 Test" "2026-11-10 12:10"'
+        )
+
+        batch_data = mock_shell.connection.api.create_schedules_batch.call_args[0][0]
+        assert batch_data["start"] == "now"
+        assert batch_data["end"] == "2026-11-10 12:10"
+
+    def test_schedule_admin_missing_dates_no_crash(self, mock_shell):
+        """Test missing dates produce a clean error instead of a TypeError"""
+        mock_shell.connection.is_connected = True
+        mock_shell.connection.is_authenticated = True
+        mock_shell.connection.is_admin = True
+        mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud06"}]
+
+        schedule_cmd = ScheduleCommands(mock_shell)
+        schedule_cmd.cmd_schedule_admin(
+            "cloud06 host01.example.com cloud-owner wfoster " 'vlan 619 cloud-ticket 6319 description "QUADS304 Test"'
+        )
+
+        error_calls = [str(call) for call in mock_shell.perror.call_args_list]
+        assert any("start and end dates are required" in call for call in error_calls)
+        assert not any("Scheduling failed" in call for call in error_calls)
+        assert not mock_shell.connection.api.create_schedules_batch.called
+
     def test_schedule_admin_batch_jira_updated(self, mock_shell):
         """Test batch schedule with JIRA update confirmation"""
         mock_shell.connection.is_connected = True

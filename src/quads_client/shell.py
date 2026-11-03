@@ -455,6 +455,9 @@ class QuadsClientShell(cmd2.Cmd):
             self.poutput('  schedule cloud02 host01,host02 "2026-08-01 22:00" "2026-08-15 22:00"')
             self.poutput('  schedule cloud03 host-list ~/hosts.txt "2026-08-01 22:00" "2026-08-15 22:00"')
             self.poutput('  schedule cloud02 host01 "2026-08-01 22:00" "2026-08-15 22:00" description "CI env"')
+            self.poutput('  schedule cloud02 host01 description "CI env" "2026-08-15 22:00"')
+            self.poutput("\nDates may appear anywhere after the host list; a single date is the end date.")
+            self.poutput("  Start defaults to now when omitted.")
         else:
             self.poutput("Usage: schedule <count|hostname[,hostname...]|host-list path> description <desc> [options]")
             self.poutput("\nRequest a host assignment (SSM mode).")

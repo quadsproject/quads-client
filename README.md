@@ -415,13 +415,13 @@ quads-client terminate 42
 
 ```bash
 # Unified schedule command (creates assignment + schedules in one step)
-quads-client schedule cloud02 host01,host02 2026-05-15 2026-06-15 \
+quads-client schedule cloud02 host01,host02 "2026-05-15 22:00" "2026-06-15 22:00" \
   description "Test Environment" \
   cloud-owner jdoe \
   cloud-ticket JIRA-456
 
 # Schedule with host list file
-quads-client schedule cloud17 host-list ~/hosts.txt now 2026-07-01 \
+quads-client schedule cloud17 host-list ~/hosts.txt now "2026-07-01 22:00" \
   description "Performance Lab" \
   cloud-owner alice \
   cloud-ticket JIRA-789
@@ -1039,6 +1039,8 @@ Hosts:
 Date/Time Formats:
   "2026-05-07 13:00"                 - Full date and time (YYYY-MM-DD HH:MM, requires quotes)
   now                                - Immediate start (start date only)
+  Dates may appear anywhere after the host list; a single date is treated as
+  the end date, with start defaulting to now.
 
 Options:
   description <text>                 - Assignment description (required for new assignments)
