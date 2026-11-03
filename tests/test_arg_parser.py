@@ -252,15 +252,15 @@ class TestParseScheduleAdminArgs:
 
     def test_basic_admin_schedule(self):
         """Test basic admin schedule parsing"""
-        result = parse_schedule_admin_args("cloud02 host01.example.com 2026-05-11 2026-06-11")
+        result = parse_schedule_admin_args('cloud02 host01.example.com "2026-05-11 22:00" "2026-06-11 22:00"')
         assert result["cloud"] == "cloud02"
         assert result["host_list"] == ["host01.example.com"]
-        assert result["start"] == "2026-05-11"
-        assert result["end"] == "2026-06-11"
+        assert result["start"] == "2026-05-11 22:00"
+        assert result["end"] == "2026-06-11 22:00"
 
     def test_comma_separated_hosts_admin(self):
         """Test comma-separated hosts in admin mode"""
-        result = parse_schedule_admin_args("cloud02 host01,host02,host03 2026-05-11 2026-06-11")
+        result = parse_schedule_admin_args('cloud02 host01,host02,host03 "2026-05-11 22:00" "2026-06-11 22:00"')
         assert result["host_list"] == ["host01", "host02", "host03"]
 
     def test_host_list_file_admin(self):
@@ -270,30 +270,104 @@ class TestParseScheduleAdminArgs:
             temp_path = f.name
 
         try:
-            result = parse_schedule_admin_args(f"cloud02 host-list {temp_path} 2026-05-11 2026-06-11")
+            result = parse_schedule_admin_args(f'cloud02 host-list {temp_path} "2026-05-11 22:00" "2026-06-11 22:00"')
             assert result["host_list"] == ["host01", "host02"]
             assert result["cloud"] == "cloud02"
         finally:
             os.unlink(temp_path)
 
+    def test_single_date_admin(self):
+        """Test a single date is treated as the end date with start defaulting to now"""
+        result = parse_schedule_admin_args('cloud02 host01 "2026-11-03 12:10"')
+        assert result["start"] == "now"
+        assert result["end"] == "2026-11-03 12:10"
+
     def test_too_few_args_admin(self):
         """Test error with too few arguments in admin mode"""
         with pytest.raises(ValueError, match="Usage:"):
-            parse_schedule_admin_args("cloud02 host01 2026-05-11")
+            parse_schedule_admin_args("cloud02 host01")
+
+    def test_missing_dates_admin(self):
+        """Test error when no dates are provided"""
+        with pytest.raises(ValueError, match="start and end dates are required"):
+            parse_schedule_admin_args('cloud02 host01 cloud-owner jdoe description "Test"')
+
+    def test_too_many_dates_admin(self):
+        """Test error when more than two dates are provided"""
+        with pytest.raises(ValueError, match="Too many dates"):
+            parse_schedule_admin_args('cloud02 host01 "2026-11-03 09:10" "2026-11-03 12:10" "2026-11-04 12:10"')
+
+    def test_dates_after_options_admin(self):
+        """Test dates may appear after options and are not swallowed by description"""
+        result = parse_schedule_admin_args(
+            "cloud06 host01.example.com cloud-owner wfoster "
+            'vlan 619 cloud-ticket 6319 description "QUADS304 Test" '
+            '"2026-11-03 09:10" "2026-11-03 12:10"'
+        )
+        assert result["start"] == "2026-11-03 09:10"
+        assert result["end"] == "2026-11-03 12:10"
+        assert result["description"] == "QUADS304 Test"
+        assert result["cloud_owner"] == "wfoster"
+        assert result["vlan"] == 619
+        assert result["cloud_ticket"] == "6319"
+
+    def test_single_date_after_options_admin(self):
+        """Test a single date after options defaults start to now"""
+        result = parse_schedule_admin_args(
+            "cloud06 host01.example.com cloud-owner wfoster "
+            'vlan 619 cloud-ticket 6319 description "QUADS304 Test" "2026-11-10 12:10"'
+        )
+        assert result["start"] == "now"
+        assert result["end"] == "2026-11-10 12:10"
+        assert result["description"] == "QUADS304 Test"
+
+    def test_option_value_date_admin(self):
+        """Test date-shaped option values are not treated as schedule dates"""
+        result = parse_schedule_admin_args('cloud02 host01 description "now" "2026-11-03 12:10"')
+        assert result["description"] == "now"
+        assert result["start"] == "now"
+        assert result["end"] == "2026-11-03 12:10"
+
+    def test_description_only_date_value_admin(self):
+        """Test a description that is exactly a date is kept as text"""
+        with pytest.raises(ValueError, match="start and end dates are required"):
+            parse_schedule_admin_args('cloud02 host01 description "2026-05-11 22:00"')
+
+    def test_near_miss_date_admin(self):
+        """Test malformed date tokens raise instead of being silently dropped"""
+        with pytest.raises(ValueError, match="Invalid date format"):
+            parse_schedule_admin_args('cloud02 host01 description "Test" "2026-11-03 9:10" "2026-11-03 12:10"')
+        with pytest.raises(ValueError, match="Invalid date format"):
+            parse_schedule_admin_args('cloud02 host01 2026-5-11 "2026-06-11 22:00"')
+
+    def test_single_now_admin(self):
+        """Test a single 'now' requires an end date"""
+        with pytest.raises(ValueError, match="end date is required"):
+            parse_schedule_admin_args("cloud02 host01 now")
+
+    def test_nowipe_then_date_admin(self):
+        """Test nowipe is a flag and does not consume the following date"""
+        result = parse_schedule_admin_args('cloud02 host01 nowipe "2026-11-03 12:10"')
+        assert result["start"] == "now"
+        assert result["end"] == "2026-11-03 12:10"
+        assert result["wipe"] is False
+        assert result["nowipe"] is True
 
     def test_host_list_missing_path_admin(self):
         """Test host-list without file path in admin mode"""
-        with pytest.raises(ValueError, match="host-list requires a file path"):
-            parse_schedule_admin_args("cloud02 host-list 2026-05-11 2026-06-11")
+        with pytest.raises(ValueError, match="Usage:"):
+            parse_schedule_admin_args("cloud02 host-list")
 
     def test_os_option_admin(self):
         """Test os option in admin mode"""
-        result = parse_schedule_admin_args('cloud02 host01 2026-05-11 2026-06-11 description "Test" os "RHEL 9.4"')
+        result = parse_schedule_admin_args(
+            'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" description "Test" os "RHEL 9.4"'
+        )
         assert result["os"] == "RHEL 9.4"
 
     def test_os_default_none_admin(self):
         """Test that os defaults to None in admin mode"""
-        result = parse_schedule_admin_args("cloud02 host01 2026-05-11 2026-06-11")
+        result = parse_schedule_admin_args('cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00"')
         assert result["os"] is None
 
 

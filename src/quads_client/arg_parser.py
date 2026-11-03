@@ -1,7 +1,19 @@
 """Argument parsing utilities for QUADS Client"""
 
 import os
+import re
 import shlex
+
+_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?")
+_NEAR_DATE_RE = re.compile(r"(\d{4}[-/]\d{1,2}[-/]\d{1,2}( \d{1,2}:\d{2})?|\d{1,2}:\d{2})")
+
+
+def _is_date_token(token):
+    return token == "now" or bool(_DATE_RE.fullmatch(token))
+
+
+def _is_near_date(token):
+    return not _is_date_token(token) and bool(_NEAR_DATE_RE.fullmatch(token))
 
 
 def parse_host_list_file(file_path):
@@ -203,6 +215,10 @@ def parse_schedule_admin_args(args):
 
     Syntax: schedule <cloud> <hosts|host-list path> <start> <end> [options]
 
+    Dates are quoted "YYYY-MM-DD HH:MM" (or 'now' for start) and may appear
+    anywhere after the host(s); options are order-independent. A single date
+    argument is treated as the end date, with start defaulting to now.
+
     Options:
       description <text>       Assignment description (required for new assignments)
       cloud-owner <user>       Cloud owner username
@@ -223,7 +239,7 @@ def parse_schedule_admin_args(args):
         ValueError: If arguments are invalid
     """
     parts = shlex.split(args)
-    if len(parts) < 4:
+    if len(parts) < 3:
         raise ValueError(
             "Usage: schedule <cloud> <hosts|host-list path> <start> <end> [description <text>] "
             "[cloud-owner <user>] [cloud-ticket <id>] [cc-users <users>] "
@@ -248,8 +264,6 @@ def parse_schedule_admin_args(args):
 
     # Parse hosts argument (between cloud and dates)
     if parts[1] == "host-list":
-        if len(parts) < 5:
-            raise ValueError("host-list requires a file path")
         result["host_list"] = parse_host_list_file(parts[2])
         params_start = 3  # Start looking for dates after file path
     elif "," in parts[1]:
@@ -261,17 +275,38 @@ def parse_schedule_admin_args(args):
         result["host_list"] = [parts[1]]
         params_start = 2
 
-    # Extract start/end dates (must come before optional keywords)
+    # Extract dates anywhere after the host(s); options are order-independent.
+    # A single date is the end date, with start defaulting to now. A value
+    # immediately following a keyword belongs to that option, never a date.
     keywords = ["description", "cloud-owner", "cc-users", "cloud-ticket", "vlan", "qinq", "os", "nowipe"]
-    if params_start + 2 <= len(parts):
-        # Check if next items are dates or keywords
-        if parts[params_start] not in keywords:
-            result["start"] = parts[params_start]
-            if params_start + 1 < len(parts) and parts[params_start + 1] not in keywords:
-                result["end"] = parts[params_start + 1]
-                params_start += 2
-            else:
-                params_start += 1
+    value_keywords = ["description", "cloud-owner", "cc-users", "cloud-ticket", "vlan", "qinq", "os"]
+    tail = parts[params_start:]
+    date_tokens = []
+    date_idx = set()
+    for i, p in enumerate(tail):
+        if _is_date_token(p) and (i == 0 or tail[i - 1] not in value_keywords):
+            date_tokens.append(p)
+            date_idx.add(i)
+    for i, p in enumerate(tail):
+        if i in date_idx or (i > 0 and tail[i - 1] in value_keywords):
+            continue
+        if _is_near_date(p):
+            raise ValueError(f"Invalid date format: {p!r}, expected 'YYYY-MM-DD HH:MM'")
+    if len(date_tokens) == 2:
+        result["start"], result["end"] = date_tokens
+    elif len(date_tokens) == 1:
+        if date_tokens[0] == "now":
+            raise ValueError("an end date is required (a single 'now' is not a valid schedule)")
+        result["start"] = "now"
+        result["end"] = date_tokens[0]
+    elif len(date_tokens) > 2:
+        raise ValueError(f"Too many dates: expected <start> <end>, got {len(date_tokens)} date arguments")
+    else:
+        raise ValueError(
+            "start and end dates are required (a single date is treated as the end date, "
+            "start defaults to now): schedule <cloud> <hosts|host-list path> <start> <end> [options]"
+        )
+    parts = parts[:params_start] + [p for i, p in enumerate(tail) if i not in date_idx]
 
     # Parse optional keyword parameters
     i = params_start
