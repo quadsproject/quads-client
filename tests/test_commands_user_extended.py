@@ -315,3 +315,38 @@ def test_my_hosts_api_error(mock_shell):
 
     # Should handle error via error_handler
     mock_shell.perror.assert_called()
+
+
+def test_assignment_terminate_refreshes_token_on_401(mock_shell):
+    """Test terminate refreshes the session token once when the API raises APIUnauthorized"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "user@example.com"
+    mock_shell.connection.refresh_token.return_value = True
+
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {
+            "id": 42,
+            "cloud": {"name": "cloud17"},
+            "owner": "user",
+            "description": "test",
+            "active": True,
+        }
+    ]
+
+    class APIUnauthorized(Exception):
+        pass
+
+    mock_shell.connection.api.terminate_assignment.side_effect = [
+        APIUnauthorized("Invalid Authentication token!"),
+        {"status": "success"},
+    ]
+
+    with patch("builtins.input", return_value="y"):
+        user_cmd = UserCommands(mock_shell)
+        user_cmd.cmd_terminate("42")
+
+    mock_shell.connection.refresh_token.assert_called_once()
+    assert mock_shell.connection.api.terminate_assignment.call_count == 2
+    assert "Terminated assignment" in str(mock_shell.poutput.call_args_list)

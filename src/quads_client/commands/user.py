@@ -587,7 +587,7 @@ class UserCommands:
                     self.shell.perror(f"No schedule found for {hostname} in assignment {assignment_id}")
                     return
 
-                self.shell.connection.api.remove_schedule(schedules[0]["id"])
+                auto_refresh_on_auth_error(self.shell, self.shell.connection.api.remove_schedule, schedules[0]["id"])
                 self.shell.poutput(f"OK: Released {hostname} from assignment #{assignment_id}")
             else:
                 # Terminate entire assignment
@@ -597,7 +597,9 @@ class UserCommands:
                         self.shell.poutput("Assignment not terminated")
                         return
 
-                result = self.shell.connection.api.terminate_assignment(assignment_id)
+                result = auto_refresh_on_auth_error(
+                    self.shell, self.shell.connection.api.terminate_assignment, assignment_id
+                )
 
                 # Check if termination was successful
                 if isinstance(result, dict):

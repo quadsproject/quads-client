@@ -1311,7 +1311,7 @@ quads-client/
 
 - Python >= 3.13
 - cmd2 >= 2.0.0
-- quads-lib >= 0.1.18
+- quads-lib >= 0.1.20
 - PyYAML >= 6.0.0
 - argcomplete >= 3.1.2
 - tabulate >= 0.9.0
