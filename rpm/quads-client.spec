@@ -20,7 +20,7 @@ Summary: QUADS Client TUI Shell for managing multiple QUADS server instances
 Name: %{name}
 Version: %{version}
 Release: %{build_timestamp}
-Source0: https://github.com/sadsfae/quads-client/archive/%{branch}.tar.gz#/%{name}-%{version}-%{release}.tar.gz
+Source0: https://github.com/quadsproject/quads-client/archive/%{branch}.tar.gz#/%{name}-%{version}-%{release}.tar.gz
 License: GPLv3
 BuildRoot: %{_tmppath}/%{name}-buildroot
 Prefix: %{_prefix}
