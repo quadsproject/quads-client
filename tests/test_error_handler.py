@@ -316,3 +316,36 @@ def test_handle_api_error_generic():
 
     mock_shell.perror.assert_called_once()
     assert "Custom operation failed" in str(mock_shell.perror.call_args)
+
+
+def test_handle_api_error_api_unauthorized_exception():
+    """Test handle_api_error for quads-lib APIUnauthorized exceptions"""
+    mock_shell = MagicMock()
+
+    class APIUnauthorized(Exception):
+        pass
+
+    error = APIUnauthorized("Invalid Authentication token!")
+
+    handle_api_error(mock_shell, error, "Terminate")
+
+    calls = [str(call) for call in mock_shell.perror.call_args_list]
+    assert any("Authentication failed" in str(call) for call in calls)
+    assert any("Run 'login' to refresh your session" in str(call) for call in calls)
+
+
+def test_auto_refresh_on_auth_error_unauthorized_class():
+    """Test auto_refresh wrapper refreshes for APIUnauthorized even when the message is not auth-shaped"""
+    mock_shell = MagicMock()
+    mock_shell.connection.refresh_token.return_value = True
+
+    class APIUnauthorized(Exception):
+        pass
+
+    api_func = MagicMock(side_effect=[APIUnauthorized("Failed to parse response"), {"status": "success"}])
+
+    result = auto_refresh_on_auth_error(mock_shell, api_func)
+
+    assert result == {"status": "success"}
+    assert api_func.call_count == 2
+    mock_shell.connection.refresh_token.assert_called_once()
