@@ -1,6 +1,45 @@
 # CHANGELOG
 
 
+## v0.12.0 (2026-11-27)
+
+### Bug Fixes
+
+- Refresh expired session token on terminate
+  ([`8ec0a8a`](https://github.com/quadsproject/quads-client/commit/8ec0a8a5663e85f7fd5d5342d2411b9edf623d66))
+
+A 4h20m JWT expiry mid-session left terminate failing with the raw "Invalid Authentication token!"
+  message: the assignment lookup GET is public so it still worked, but the protected terminate POST
+  401'd, and quads-lib returned the 401 body as a dict so the existing auto_refresh_on_auth_error
+  never fired. terminate and release-host now go through the auto-refresh wrapper, the error handler
+  recognizes the APIUnauthorized exception (with the login hint), and quads-lib >= 0.1.20 is
+  required for the raised exception.
+
+fixes: https://github.com/quadsproject/quads-client/issues/209
+
+- Track retried moves as retrying, not FAILED
+  ([`9cf3c87`](https://github.com/quadsproject/quads-client/commit/9cf3c87340ac8bec974463ba54bbef4e484a6844))
+
+track declared a move terminal FAILED the moment the server reported status "failed", but a failed
+  move is retried by the next move cycle. A failed row is now shown as Retrying (yellow) while the
+  server still lists the host for a move, and only rendered FAILED once the server stops reporting
+  it. The all-moves table also surfaces error_message so the failure reason is visible without
+  switching to the single view.
+
+fixes: https://github.com/quadsproject/quads-client/issues/207
+
+### Chores
+
+- Remove unused id-token permission
+  ([`f5b5b2b`](https://github.com/quadsproject/quads-client/commit/f5b5b2b530da40ba45d639047e72fbc439f5e60c))
+
+The pypa publish step authenticates with the PyPI API token, not OIDC, so id-token: write is never
+  exercised. Removing the dead permission removes the only OIDC trust surface.
+
+- Update RPM spec version to 0.11.0
+  ([`3545a11`](https://github.com/quadsproject/quads-client/commit/3545a1136fa8df8c8c7ad1d6c698e84e81945c7b))
+
+
 ## v0.11.0 (2026-11-03)
 
 ### Bug Fixes
@@ -19,13 +58,35 @@ Document in the README that both spellings are accepted, and harden
 
 fixes: https://github.com/quadsproject/quads-client/issues/187
 
+- Accept hyphenated command names in one-shot mode
+  ([`4b2d4c7`](https://github.com/quadsproject/quads-client/commit/4b2d4c7f8e45262938997cf7bb850c140e30cc8f))
+
+One-shot and piped mode compared the command token verbatim against an underscore-only list before
+  dispatch, so hyphenated spellings such as 'edit-server' (the spelling used in the connection error
+  hints) failed with exit code 3 and never ran. Normalize the token the same way the interactive
+  dispatch hooks already do.
+
+Document in the README that both spellings are accepted, and harden
+  test_unknown_hyphenated_command_errors to assert on the command name instead of cmd2's exact error
+  wording.
+
+fixes: https://github.com/quadsproject/quads-client/issues/187
+
 - Find_free_cloud ignores future scheduled assignments
   ([`0a221d0`](https://github.com/quadsproject/quads-client/commit/0a221d0ea0958f97349d1ed8bc31da63cc95cdee))
 
 fixes: https://github.com/quadsproject/quads-client/issues/193
 
+- Find_free_cloud ignores future scheduled assignments
+  ([`27af036`](https://github.com/quadsproject/quads-client/commit/27af036fab8eb0168ce237a13491269da65fc440))
+
+fixes: https://github.com/quadsproject/quads-client/issues/193
+
 - Improve find_free_cloud to use quads-lib endpoint
   ([`3ee56a3`](https://github.com/quadsproject/quads-client/commit/3ee56a344f83be403bfd0412286ac62166862b92))
+
+- Improve find_free_cloud to use quads-lib endpoint
+  ([`ba49712`](https://github.com/quadsproject/quads-client/commit/ba49712b175688c4eb5e789f3b1af40e0b14d3c3))
 
 ### Chores
 
@@ -37,10 +98,26 @@ fixes: https://github.com/quadsproject/quads-client/issues/193
 - Update README.md with new quads-lib ver
   ([`8a8819e`](https://github.com/quadsproject/quads-client/commit/8a8819e3abdfd0bd2ec46263497e946a0d2c46da))
 
+- Update README.md with new quads-lib ver
+  ([`e5ab85a`](https://github.com/quadsproject/quads-client/commit/e5ab85a679d7a96e253144c5bff565cef74cf15a))
+
 ### Features
 
 - Link release RPMs in the release notes
   ([`4239c98`](https://github.com/quadsproject/quads-client/commit/4239c98a7af308be85d005d402ddc9ce33f15603))
+
+Copr's Pulp backend hides the built RPMs from the download index, so a release no longer has a path
+  to its artifacts. Wait for the Copr build of the release version and append the absolute URL of
+  every quads-client and quads-client-gui RPM, in every chroot the Copr project builds, to the
+  release body.
+
+The URLs come from each chroot's repository metadata and are checked before they are written; a
+  release that already lists its packages is left alone.
+
+fixes: https://github.com/quadsproject/quads-client/issues/198
+
+- Link release RPMs in the release notes
+  ([`4dd626a`](https://github.com/quadsproject/quads-client/commit/4dd626a227a1dc22be9b45a296acafba5bf3c039))
 
 Copr's Pulp backend hides the built RPMs from the download index, so a release no longer has a path
   to its artifacts. Wait for the Copr build of the release version and append the absolute URL of
@@ -64,8 +141,30 @@ Admin schedule parsing no longer requires start/end to immediately follow the ho
 
 fixes: https://github.com/quadsproject/quads-client/issues/204
 
+- Schedule dates in any order or single date
+  ([`016fe22`](https://github.com/quadsproject/quads-client/commit/016fe22b1b67035cc40203ef7802bfa8496b2d34))
+
+Admin schedule parsing no longer requires start/end to immediately follow the host list. Date-shaped
+  tokens are recognized anywhere after the host list, so options may appear in any order. A single
+  date is treated as the end date with start defaulting to now. Missing or extra dates raise a clear
+  usage error instead of a strptime TypeError, and malformed dates error instead of being silently
+  dropped. Option values are never interpreted as dates; nowipe is a flag and never consumes the
+  next token.
+
+fixes: https://github.com/quadsproject/quads-client/issues/204
+
 - Tab-complete hyphenated command names
   ([`97e9d3f`](https://github.com/quadsproject/quads-client/commit/97e9d3f5ffe8f847b88f39bbe50efb952214b17a))
+
+Add the hyphenated spelling for each visible underscore command to the command-token completion
+  hooks so 'edit-s' completes to 'edit-server', matching the documented UX and the spelling used in
+  connection error hints. cmd2 4.x builds command completions from Choices and cmd2 3.x from a plain
+  name list, so each major gets its own hook; underscore completion keeps working.
+
+fixes: https://github.com/quadsproject/quads-client/issues/186
+
+- Tab-complete hyphenated command names
+  ([`4be7da8`](https://github.com/quadsproject/quads-client/commit/4be7da846ae28e02523bbf6d52608029872fc46e))
 
 Add the hyphenated spelling for each visible underscore command to the command-token completion
   hooks so 'edit-s' completes to 'edit-server', matching the documented UX and the spelling used in
@@ -79,10 +178,16 @@ fixes: https://github.com/quadsproject/quads-client/issues/186
 - Removed gui tests recently added, doc change
   ([`f5063d9`](https://github.com/quadsproject/quads-client/commit/f5063d90e4b179b89b5d912fa7767559e954a4e2))
 
+- Removed gui tests recently added, doc change
+  ([`a5397b4`](https://github.com/quadsproject/quads-client/commit/a5397b42269afe8b5baa5a5698d29ba060363df6))
+
 ### Testing
 
 - Add tests for get_free_clouds endpoint in gui, fix flake8 formatting
   ([`8421a23`](https://github.com/quadsproject/quads-client/commit/8421a23c5a1f79aa3ff973381475c6b943186001))
+
+- Add tests for get_free_clouds endpoint in gui, fix flake8 formatting
+  ([`da2a051`](https://github.com/quadsproject/quads-client/commit/da2a051c87d45543308bf7a84e3b31f2293d0e6d))
 
 
 ## v0.10.0 (2026-10-12)
