@@ -21,7 +21,12 @@ def auto_refresh_on_auth_error(shell, api_call_func, *args, **kwargs):
     except Exception as e:
         error_str = str(e).lower()
         # Check if this is an authentication error
-        if "401" in str(e) or "unauthorized" in error_str or "token" in error_str:
+        if (
+            type(e).__name__ == "APIUnauthorized"
+            or "401" in str(e)
+            or "unauthorized" in error_str
+            or "token" in error_str
+        ):
             # Try to refresh the token
             if shell.connection and shell.connection.refresh_token():
                 # Retry the operation with fresh token
@@ -68,7 +73,7 @@ def handle_api_error(shell, error, operation="operation"):
         shell.perror("  1. Configure Jira credentials in QUADS config (jira_url, jira_username, jira_password), OR")
         shell.perror("  2. Disable automatic tickets: set 'ssm_jira_create_ticket: false' in server config")
     # Handle authentication errors
-    elif "401" in str(error) or "unauthorized" in error_msg:
+    elif type(error).__name__ == "APIUnauthorized" or "401" in str(error) or "unauthorized" in error_msg:
         shell.perror(f"Authentication failed: {error}")
         shell.perror("Hint: Run 'login' to refresh your session")
     # Handle permission errors
