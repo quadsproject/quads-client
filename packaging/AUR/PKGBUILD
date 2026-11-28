@@ -1,6 +1,6 @@
 # Maintainer: Will Foster <wfoster@redhat.com>
 pkgname=quads-client
-pkgver=0.12.0
+pkgver=0.13.0
 pkgrel=1
 pkgdesc="QUADS Client - CLI and tkinter GUI for managing multiple QUADS server instances"
 arch=('any')
