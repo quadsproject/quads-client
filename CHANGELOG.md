@@ -1,6 +1,34 @@
 # CHANGELOG
 
 
+## v0.13.0 (2026-11-28)
+
+### Chores
+
+- Point quads-client spec Source0 at quadsproject repo
+  ([`be32ec6`](https://github.com/quadsproject/quads-client/commit/be32ec692203725a30acd173542f98f64d800bd4))
+
+The spec's Source0 still referenced the stale sadsfae fork, whose main branch is at 0.11.0
+  (3545a11). The COPR build would fetch the old tarball and label it with the new version. Mirror
+  the lib spec, which already sources from quadsproject.
+
+- Point quads-client spec Source0 at quadsproject repo
+  ([`5c33a02`](https://github.com/quadsproject/quads-client/commit/5c33a02a34006d0cb3505745e5772e4f77b83dee))
+
+The spec's Source0 still referenced the stale sadsfae fork, whose main branch is at 0.11.0
+  (3545a11). The COPR build would fetch the old tarball and label it with the new version. Mirror
+  the lib spec, which already sources from quadsproject.
+
+- Update RPM spec version to 0.12.0
+  ([`475efaa`](https://github.com/quadsproject/quads-client/commit/475efaaf2f9d4a4bcbed115d284c35897b4e1aff))
+
+### Features
+
+- Add AUR packaging and README install icons
+  ([#215](https://github.com/quadsproject/quads-client/pull/215),
+  [`f8d0030`](https://github.com/quadsproject/quads-client/commit/f8d00306bc8e8c4da607c4fd29d51f4ff4782e08))
+
+
 ## v0.12.0 (2026-11-27)
 
 ### Bug Fixes
