@@ -1,0 +1,54 @@
+# Maintainer: Will Foster <wfoster@redhat.com>
+pkgname=quads-client
+pkgver=0.12.0
+pkgrel=1
+pkgdesc="QUADS Client - CLI and tkinter GUI for managing multiple QUADS server instances"
+arch=('any')
+url="https://github.com/quadsproject/quads-client"
+license=('GPL-3.0-only')
+depends=(
+  'python'
+  'python-cmd2'
+  'python-argcomplete'
+  'python-yaml'
+  'python-requests'
+  'python-pysocks'
+  'python-tabulate'
+  'python-rich'
+  'python-pyjwt'
+  'tk'
+)
+makedepends=(
+  'python-build'
+  'python-installer'
+  'python-wheel'
+  'python-setuptools'
+)
+# quads-lib is not packaged in the Arch repos nor the AUR, so it is built from
+# source and installed from its wheel here (see build()/package()).
+_qlver=0.1.21
+source=(
+  "https://github.com/quadsproject/quads-client/archive/refs/tags/v${pkgver}.tar.gz"
+  "https://github.com/quadsproject/python-quads-lib/archive/refs/tags/v${_qlver}.tar.gz"
+)
+# sha256sums are SKIP because the quads-client source tracks the released tag
+# (bumped by sync-back every release) and GitHub codeload tarballs are not
+# stable across downloads.
+sha256sums=('SKIP' 'SKIP')
+
+build() {
+  python -m build --wheel --no-isolation "${srcdir}/quads-client-${pkgver}"
+  python -m build --wheel --no-isolation "${srcdir}/python-quads-lib-${_qlver}"
+}
+
+package() {
+  python -m installer --destdir "$pkgdir" "${srcdir}/quads-client-${pkgver}"/dist/*.whl
+  python -m installer --destdir "$pkgdir" "${srcdir}/python-quads-lib-${_qlver}"/dist/*.whl
+
+  install -Dm644 "${srcdir}/quads-client-${pkgver}/conf/quads-client.yml.example" \
+    "${pkgdir}/usr/share/doc/quads-client/quads-client.yml.example"
+  install -Dm644 "${srcdir}/quads-client-${pkgver}/desktop/quads-client-gui.desktop" \
+    "${pkgdir}/usr/share/applications/quads-client-gui.desktop"
+  install -Dm644 "${srcdir}/quads-client-${pkgver}/desktop/icons/quads-client.png" \
+    "${pkgdir}/usr/share/icons/hicolor/128x128/apps/quads-client.png"
+}

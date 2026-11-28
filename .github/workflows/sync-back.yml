@@ -25,17 +25,21 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git fetch origin
 
-      - name: Update RPM spec version on main
+      - name: Update RPM spec and AUR PKGBUILD version on main
         run: |
           git checkout main
           VERSION=$(grep -oP "^__version__ = ['\"]([^'\"]+)['\"]" src/quads_client/__init__.py | grep -oP "[0-9]+\.[0-9]+\.[0-9]+")
           echo "Extracted version: $VERSION"
           sed -i "s/^%define version.*/%define version $VERSION/" rpm/quads-client.spec
           git add rpm/quads-client.spec
+          if [[ -f packaging/AUR/PKGBUILD ]]; then
+            sed -i "s/^pkgver=.*/pkgver=$VERSION/" packaging/AUR/PKGBUILD
+            git add packaging/AUR/PKGBUILD
+          fi
           if ! git diff --staged --quiet; then
-            git commit -m "chore: update RPM spec version to $VERSION"
+            git commit -m "chore: update RPM spec and AUR PKGBUILD version to $VERSION"
             git push origin main
-            echo "Updated RPM spec to version $VERSION on main"
+            echo "Updated RPM spec and AUR PKGBUILD to version $VERSION on main"
           else
             echo "No version changes to commit"
           fi
