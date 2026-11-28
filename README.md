@@ -33,6 +33,7 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 
 - [Installation](#installation)
   - [From RPM](#from-rpm)
+  - [From AUR (Arch Linux)](#from-aur-arch-linux)
   - [From PyPI (pip)](#from-pypi-pip)
   - [Mac Native Application (pip)](#mac-native-application-pip)
   - [From Source](#from-source)
@@ -84,6 +85,8 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 
 ### From RPM
 
+<img src="assets/redhat.svg" alt="RPM" width="28" />
+
 For Fedora:
 
 ```bash
@@ -96,7 +99,23 @@ dnf install quads-client
 dnf install quads-client-gui
 ```
 
+### From AUR (Arch Linux)
+
+<img src="assets/arch.svg" alt="AUR" width="28" />
+
+For Arch Linux and its derivatives, build the package from the in-repo PKGBUILD:
+
+```bash
+git clone https://github.com/quadsproject/quads-client.git
+cd quads-client/packaging/AUR
+makepkg -si
+```
+
+This builds and installs both `quads-client` and `quads-client-gui`.
+
 ### From PyPI (pip)
+
+<img src="assets/python.svg" alt="PyPI" width="28" />
 
 > [!IMPORTANT]
 > `quads-client` and `quads-client-gui` require Python3.13 or higher.
@@ -135,6 +154,8 @@ deactivate
 ```
 
 ### Mac Native Application (pip)
+
+<img src="assets/macos.svg" alt="macOS" width="28" />
 
 For macOS users who want a double-clickable .app bundle:
 
